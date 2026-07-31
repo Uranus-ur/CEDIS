@@ -1,0 +1,1925 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicador de productividad</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #12161D;
+    --panel: #1B2129;
+    --panel-alt: #20272F;
+    --border: #2B3440;
+    --text: #E7EAEE;
+    --muted: #8B94A3;
+    --accent: #FF7A3D;
+    --good: #2FD9A8;
+    --bad: #F0555A;
+    --salida: #3DB8FF;
+    --devolucion: #B98CFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 32px 16px 60px; }
+  .eyebrow {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 8px;
+  }
+  h1 {
+    font-family: "Oswald", "Segoe UI", sans-serif;
+    font-size: 28px; font-weight: 700; margin: 0 0 4px;
+    letter-spacing: 0.01em;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 28px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px; margin-bottom: 22px;
+  }
+  .card-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 14px;
+  }
+  .card-title .accent { color: var(--accent); }
+  .hint { font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+  .row-wrap { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 24px; }
+  label.field { display: flex; flex-direction: column; gap: 4px; }
+  label.field span { font-size: 12px; color: var(--muted); }
+  input[type="time"], input[type="number"], input[type="text"], select {
+    background: var(--panel-alt); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: 15px; font-family: "SF Mono", ui-monospace, monospace;
+    outline: none;
+  }
+  select { font-family: inherit; font-size: 13px; }
+  .duracion-box span.label { font-size: 12px; color: var(--muted); display:block; margin-bottom:4px; }
+  .duracion-box .value { font-size: 18px; font-weight: 700; color: var(--accent); font-family: ui-monospace, monospace; }
+
+  .franja { width: 100%; height: 32px; border-radius: 8px; border: 1px solid var(--border);
+    overflow: hidden; display: flex; margin-top: 16px; }
+  .franja > div { height: 100%; min-width: 2px; }
+  .legend-row { display: flex; gap: 16px; margin-top: 8px; }
+  .legend-dot { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display:inline-block; }
+
+  .persona-row {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--panel-alt); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 8px;
+  }
+  .persona-row select.nombre { flex: 1; min-width: 190px; }
+  .tipo-badge-select { font-weight: 600; }
+  .atendidos-field { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .atendidos-field input { width: 72px; }
+  .tiempo-box {
+    font-family: ui-monospace, monospace; font-weight: 700; font-size: 13px;
+    background: var(--bg); color: var(--accent); border-radius: 6px; padding: 6px 10px;
+    min-width: 108px; text-align: center;
+  }
+  .icon-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--bad); display:flex; }
+  .icon-btn:hover { opacity: 0.75; }
+  .empty-msg { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+
+  .add-row { display: flex; gap: 8px; margin-top: 4px; }
+  .add-row select { flex: 1; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 8px;
+    padding: 9px 16px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn-accent { background: var(--accent); color: #1A0F08; }
+  .btn-good { background: var(--good); color: #062018; }
+
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 22px; }
+  @media (min-width: 700px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+  .stat-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px;
+  }
+  .stat-label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .stat-value { font-size: 21px; font-weight: 700; font-family: ui-monospace, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .highlight-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 22px; }
+  @media (min-width: 700px) { .highlight-grid { grid-template-columns: 1fr 1fr; } }
+  .highlight-card {
+    background: var(--panel); border-radius: 14px; padding: 20px; position: relative; overflow: hidden;
+  }
+  .highlight-card.mejor { border: 1px solid var(--good); }
+  .highlight-card.peor { border: 1px solid var(--bad); }
+  .highlight-card .glow {
+    position: absolute; inset: 0; pointer-events: none;
+  }
+  .highlight-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; position: relative; }
+  .highlight-tag { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .highlight-name { font-size: 19px; font-weight: 700; }
+  .highlight-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .highlight-value { font-size: 24px; font-weight: 700; font-family: ui-monospace, monospace; text-align: right; }
+  .highlight-unit { font-size: 11px; color: var(--muted); text-align: right; }
+  .highlight-note { font-size: 12px; color: var(--muted); margin-top: 10px; position: relative; }
+  .highlight-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 13px; text-align: center; min-height: 90px; }
+
+  .rank-row {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel-alt); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .rank-row.top1 { border-color: #F0C93D; background: rgba(240,201,61,0.08); }
+  .rank-row.top2 { border-color: #C7CDD6; background: rgba(199,205,214,0.08); }
+  .rank-row.top3 { border-color: #FFA35C; background: rgba(255,163,92,0.08); }
+  .rank-medal { font-size: 22px; width: 32px; text-align: center; flex-shrink: 0; }
+  .rank-info { flex: 1; min-width: 0; }
+  .rank-name { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rank-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .rank-value { font-family: ui-monospace, monospace; font-weight: 700; font-size: 16px; color: var(--accent); text-align: right; white-space: nowrap; }
+  .rank-value .unit { display: block; font-size: 10px; color: var(--muted); font-weight: 400; }
+
+  canvas { max-width: 100%; }
+
+  /* ---- Modal: detalle de un registro del historial ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(6,8,12,0.72); z-index: 100;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto;
+  }
+  .modal-box {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    max-width: 780px; width: 100%; padding: 22px; margin-bottom: 40px;
+  }
+  .modal-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  .modal-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .modal-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 18px 0 10px; }
+  .modal-section-title:first-child { margin-top: 0; }
+  .modal-rank-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-alt); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; font-size: 13px;
+  }
+  .modal-rank-row .medal { width: 22px; text-align: center; flex-shrink: 0; }
+  .modal-rank-row .info { flex: 1; min-width: 0; }
+  .modal-rank-row .name { font-weight: 600; }
+  .modal-rank-row .sub { font-size: 11px; color: var(--muted); }
+  .modal-rank-row .val { font-family: ui-monospace, monospace; font-weight: 700; color: var(--accent); white-space: nowrap; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 10px 6px 0; }
+  td { padding: 6px 10px 6px 0; font-family: ui-monospace, monospace; border-top: 1px solid var(--border); }
+  .save-msg { font-size: 12px; background: var(--panel-alt); color: var(--text); padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; }
+  .trend-box {
+    display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 10px;
+    background: var(--panel-alt); margin-bottom: 18px; font-size: 13px;
+  }
+  .footer-note { text-align: center; color: var(--muted); font-size: 12px; padding: 12px 0 0; }
+  .top-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; }
+  .section-label {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin: 30px 0 14px; padding-top: 22px; border-top: 1px solid var(--border);
+  }
+  .section-label.first { margin-top: 4px; padding-top: 0; border-top: none; }
+  .section-label .n { color: var(--accent); }
+
+  .bodega-selector { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 6px; }
+  .bodega-pill {
+    font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel-alt); color: var(--muted);
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  .bodega-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .bodega-pill.active { background: var(--accent); border-color: var(--accent); color: #1A0F08; }
+
+  .borrador-aviso {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: rgba(255,122,61,0.08); border: 1px solid var(--accent); border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 4px; font-size: 12.5px; color: var(--text);
+  }
+  .borrador-aviso button {
+    background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 14px; padding: 2px 6px; flex-shrink: 0;
+  }
+  .borrador-aviso button:hover { color: var(--text); }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 600; white-space: nowrap;
+    transition: border-color .15s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <div>
+      <div class="eyebrow">⛭ Operación de instalación · turno mañana</div>
+      <h1>Indicador de productividad · <span id="bodegaTitle" style="color:var(--accent);">OGUA</span></h1>
+      <p class="subtitle">Tiempo de atención por persona, distribución del turno y tendencia de rendimiento.</p>
+    </div>
+    <a class="nav-btn" href="index.html">← Volver al inicio</a>
+  </div>
+
+  <div class="bodega-selector" id="bodegaSelector"></div>
+  <div id="borradorAviso"></div>
+
+  <div class="section-label first">📊 Resultados y análisis</div>
+
+  <!-- Reparto visual del turno -->
+  <div class="card">
+    <div class="card-title">▥ REPARTO DEL TURNO</div>
+    <div id="franjaWrap"></div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="grid" id="dashboardGrid"></div>
+
+  <!-- Recuadro destacado -->
+  <div class="highlight-grid" id="highlightGrid"></div>
+
+  <!-- Top 3 atención en ventana (instalaciones) -->
+  <div class="card">
+    <div class="card-title">🏆 TOP 3 DEL MES · ATENCIÓN EN VENTANA (INSTALACIONES)</div>
+    <p class="hint">Acumulado de todo el mes (lo guardado en el historial + lo digitado hoy sin guardar aún), por menor tiempo promedio por instalador atendido.</p>
+    <div id="topVentana"></div>
+  </div>
+
+  <!-- Gráfico de barras -->
+  <div class="card">
+    <div class="card-title">▤ TIEMPO DE ATENCIÓN POR PERSONA (minutos por instalador)</div>
+    <p class="hint">Cada persona tiene un color distinto para facilitar la lectura. Barra más corta = mejor rendimiento.</p>
+    <div style="position:relative;">
+      <canvas id="barChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top 3 despliegues y alistamiento -->
+  <div class="card">
+    <div class="card-title">🏆 TOP 3 DEL MES · DESPLIEGUES Y ALISTAMIENTO</div>
+    <p class="hint">Acumulado de todo el mes (lo guardado en el historial + lo digitado hoy sin guardar aún), por menor tiempo promedio de alistamiento por despliegue. ¡Para motivar al equipo!</p>
+    <div id="topDespliegues"></div>
+  </div>
+
+  <!-- Gráfico de barras: despliegues y alistamiento (aparte del de instalaciones) -->
+  <div class="card">
+    <div class="card-title">🚀 TIEMPO POR DESPLIEGUE (minutos por despliegue, hoy)</div>
+    <p class="hint">Tiempo de alistamiento por despliegue de cada auxiliar, digitado hoy. Barra más corta = mejor rendimiento.</p>
+    <div style="position:relative;">
+      <canvas id="despliegueBarChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Top 3 reintegros de equipos -->
+  <div class="card">
+    <div class="card-title">🏆 TOP 3 DEL MES · REINTEGROS DE EQUIPOS</div>
+    <p class="hint">Acumulado de todo el mes (lo guardado en el historial + lo digitado hoy sin guardar aún), por menor tiempo promedio por reintegro.</p>
+    <div id="topReintegros"></div>
+  </div>
+
+  <!-- Gráfico de barras: reintegros de equipos (aparte de instalaciones y despliegues) -->
+  <div class="card">
+    <div class="card-title">🔁 TIEMPO POR REINTEGRO (minutos por reintegro, hoy)</div>
+    <p class="hint">Tiempo que le toma a cada auxiliar reintegrar equipos, digitado hoy. Barra más corta = mejor rendimiento.</p>
+    <div style="position:relative;">
+      <canvas id="reintegroBarChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Gráfico de pastel -->
+  <div class="card">
+    <div class="card-title">◔ INSTALADORES ATENDIDOS: SALIDAS VS. DEVOLUCIÓN</div>
+    <p class="hint">Comparación del total de instaladores atendidos según el tipo de trámite en ventana.</p>
+    <div id="pieWrap" style="display:flex; flex-wrap:wrap; align-items:center; gap:20px;">
+      <div style="width:220px; height:220px; flex-shrink:0;"><canvas id="pieChart"></canvas></div>
+      <div id="pieLegend" style="flex:1; min-width:200px;"></div>
+    </div>
+  </div>
+
+  <!-- Historial y tendencia -->
+  <div class="card">
+    <div class="top-row">
+      <div class="card-title" style="margin-bottom:0;">◷ HISTORIAL Y TENDENCIA · <span id="historialBodegaLabel" style="color:var(--accent);">OGUA</span></div>
+      <button class="btn btn-good" id="btnGuardar">💾 Guardar registro del día</button>
+    </div>
+    <div id="saveMsg"></div>
+    <div id="historialBody"></div>
+  </div>
+
+  <div class="section-label">📥 Datos del turno · digitación</div>
+
+  <!-- Ventana de tiempo -->
+  <div class="card">
+    <div class="card-title"><span class="accent">⏱</span> VENTANA DE TIEMPO</div>
+    <div class="row-wrap">
+      <label class="field">
+        <span>Hora inicial</span>
+        <input type="time" id="horaInicio" value="07:00">
+      </label>
+      <label class="field">
+        <span>Hora final</span>
+        <input type="time" id="horaFin" value="11:00">
+      </label>
+      <div class="duracion-box">
+        <span class="label">Duración del turno</span>
+        <span class="value" id="duracionDisplay">—</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personas en ventana -->
+  <div class="card">
+    <div class="card-title">☷ PERSONAS EN VENTANA</div>
+    <div id="personasList"></div>
+    <div class="add-row">
+      <select id="nuevoNombre"></select>
+      <button class="btn btn-accent" id="btnAgregar">+ Agregar</button>
+    </div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">¿El auxiliar que buscas no está en la lista? Agrégalo aquí una sola vez (queda disponible para las 5 bodegas).</div>
+      <div class="add-row">
+        <input type="text" id="nuevoAuxiliarNombre" placeholder="Nombre completo del auxiliar" style="flex:1;">
+        <button class="btn" style="background:var(--panel-alt); border:1px solid var(--border); color:var(--text);" id="btnNuevoAuxiliar">+ Nuevo auxiliar</button>
+      </div>
+      <div id="nuevoAuxiliarMsg" style="font-size:12px; margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Despliegues y alistamiento -->
+  <div class="card">
+    <div class="card-title">🚀 DESPLIEGUES Y ALISTAMIENTO</div>
+    <p class="hint">Cantidad de despliegues realizados y minutos en alistamiento de cada auxiliar, para medir quién rinde mejor hoy.</p>
+    <div id="desplieguesList"></div>
+    <div class="add-row">
+      <select id="nuevoNombreDespliegue"></select>
+      <button class="btn btn-accent" id="btnAgregarDespliegue">+ Agregar</button>
+    </div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">¿El auxiliar que buscas no está en la lista? Agrégalo aquí una sola vez (queda disponible para las 5 bodegas).</div>
+      <div class="add-row">
+        <input type="text" id="nuevoAuxiliarNombreDespliegue" placeholder="Nombre completo del auxiliar" style="flex:1;">
+        <button class="btn" style="background:var(--panel-alt); border:1px solid var(--border); color:var(--text);" id="btnNuevoAuxiliarDespliegue">+ Nuevo auxiliar</button>
+      </div>
+      <div id="nuevoAuxiliarMsgDespliegue" style="font-size:12px; margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Reintegros de equipos -->
+  <div class="card">
+    <div class="card-title">🔁 REINTEGROS DE EQUIPOS</div>
+    <p class="hint">Cantidad de reintegros realizados y minutos que le tomó a cada auxiliar, para medir quién rinde mejor hoy.</p>
+    <div id="reintegrosList"></div>
+    <div class="add-row">
+      <select id="nuevoNombreReintegro"></select>
+      <button class="btn btn-accent" id="btnAgregarReintegro">+ Agregar</button>
+    </div>
+
+    <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border);">
+      <div style="font-size:12px; color:var(--muted); margin-bottom:8px;">¿El auxiliar que buscas no está en la lista? Agrégalo aquí una sola vez (queda disponible para las 5 bodegas).</div>
+      <div class="add-row">
+        <input type="text" id="nuevoAuxiliarNombreReintegro" placeholder="Nombre completo del auxiliar" style="flex:1;">
+        <button class="btn" style="background:var(--panel-alt); border:1px solid var(--border); color:var(--text);" id="btnNuevoAuxiliarReintegro">+ Nuevo auxiliar</button>
+      </div>
+      <div id="nuevoAuxiliarMsgReintegro" style="font-size:12px; margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- Novedades del turno -->
+  <div class="card">
+    <div class="card-title">⚠ NOVEDADES DEL TURNO</div>
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:12px;">
+      <input type="checkbox" id="ausentismoCheck" style="width:16px; height:16px; accent-color: var(--bad);">
+      <span style="font-size:14px;">Hubo ausentismo o falta de personal en este turno</span>
+    </label>
+    <div id="ausentismoDetalleWrap" style="display:none; margin-bottom:14px;">
+      <div class="row-wrap" style="gap:16px;">
+        <label class="field">
+          <span>Personas ausentes</span>
+          <input type="number" min="0" id="ausentismoCantidad" style="width:100px;" value="0">
+        </label>
+        <label class="field" style="flex:1; min-width:220px;">
+          <span>Detalle (quién faltó, motivo, etc.)</span>
+          <input type="text" id="ausentismoDetalle" placeholder="Ej: Juan Pablo Castaño, incapacidad médica" style="width:100%;">
+        </label>
+      </div>
+    </div>
+    <label class="field" style="width:100%;">
+      <span>Notas / novedades del turno</span>
+      <textarea id="notasTurno" placeholder="Ej: cambio de turno, incidente con un instalador, revisión especial, etc." style="width:100%; min-height:70px; background:var(--panel-alt); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:10px 12px; font-family:inherit; font-size:13px; resize:vertical; outline:none;"></textarea>
+    </label>
+  </div>
+
+  <p class="footer-note">Menor tiempo de atención por instalador = mejor rendimiento del turno.</p>
+</div>
+
+<!-- Modal: detalle de un registro guardado del historial -->
+<div id="modalOverlay" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-eyebrow" id="modalEyebrow">Registro guardado</div>
+        <div class="modal-title" id="modalTitulo">—</div>
+      </div>
+      <button type="button" id="modalCerrar" class="icon-btn" title="Cerrar">✕</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ---------- Configuración base ----------
+const TIPOS = ["Salida", "Devolución"];
+const TIPO_COLOR = { "Salida": "#3DB8FF", "Devolución": "#B98CFF" };
+const SLOTS = ["#FF7A3D", "#3DB8FF", "#2FD9A8", "#F0C93D", "#B98CFF", "#FF6FA3", "#5CE1E6", "#FFA35C"];
+const THEME = { muted: "#8B94A3", text: "#E7EAEE", border: "#2B3440", grid: "#2B3440", accent: "#FF7A3D", good: "#2FD9A8", bad: "#F0555A", panelAlt: "#20272F" };
+const STORAGE_KEY = "atencion-ventana-historial-v1"; // ya no se usa para el historial (ahora vive en Supabase), se deja por compatibilidad
+
+// ---------- Conexión a Supabase ----------
+// Reemplaza estos dos valores con los de tu proyecto (Settings → API en el panel de Supabase).
+const SUPABASE_URL = "https://ifwtjxashfkdytuuqrlu.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_AjKlPDSBmwJ_zxVxL6RxEw_xJcyGQ-p";
+const TABLA_HISTORIAL = "historial_atencion";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Convierte una fila de la base de datos (snake_case) al formato que usa la app (camelCase)
+function mapRowFromDb(row) {
+  return {
+    id: row.id,
+    bodega: row.bodega,
+    fecha: row.fecha,
+    horaInicio: row.hora_inicio,
+    horaFin: row.hora_fin,
+    duracionMin: row.duracion_min,
+    totalInstaladores: row.total_instaladores,
+    promedioGeneral: row.promedio_general,
+    promedioSalida: row.promedio_salida,
+    promedioDevolucion: row.promedio_devolucion,
+    ausentismo: row.ausentismo,
+    ausentismoCantidad: row.ausentismo_cantidad,
+    ausentismoDetalle: row.ausentismo_detalle,
+    notas: row.notas,
+    detalle: row.detalle,
+    despliegues: row.despliegues,
+    reintegros: row.reintegros,
+  };
+}
+
+// Convierte un registro de la app (camelCase) al formato de la base de datos (snake_case)
+function mapRowToDb(registro) {
+  return {
+    bodega: registro.bodega,
+    fecha: registro.fecha,
+    hora_inicio: registro.horaInicio,
+    hora_fin: registro.horaFin,
+    duracion_min: registro.duracionMin,
+    total_instaladores: registro.totalInstaladores,
+    promedio_general: registro.promedioGeneral,
+    promedio_salida: registro.promedioSalida,
+    promedio_devolucion: registro.promedioDevolucion,
+    ausentismo: registro.ausentismo,
+    ausentismo_cantidad: registro.ausentismoCantidad,
+    ausentismo_detalle: registro.ausentismoDetalle,
+    notas: registro.notas,
+    detalle: registro.detalle,
+    despliegues: registro.despliegues,
+    reintegros: registro.reintegros,
+  };
+}
+
+const TABLA_AUXILIARES = "auxiliares";
+let auxiliares = [];
+let auxiliaresCargando = true;
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
+
+// Registrar el plugin de etiquetas de datos (muestra el valor sobre cada barra)
+if (window.Chart && window.ChartDataLabels) {
+  Chart.register(ChartDataLabels);
+}
+function toMinutes(hhmm) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+function fmtMin(min) {
+  if (min === null || Number.isNaN(min) || !Number.isFinite(min)) return "—";
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h > 0 ? `${h}h ${m}m` : `${m} min`;
+}
+function fmtNum(n, dec = 1) {
+  if (n === null || n === undefined || Number.isNaN(n) || !Number.isFinite(n)) return "—";
+  return n.toFixed(dec);
+}
+function linearRegression(values) {
+  const n = values.length;
+  if (n < 2) return null;
+  const xs = values.map((_, i) => i);
+  const xMean = xs.reduce((a, b) => a + b, 0) / n;
+  const yMean = values.reduce((a, b) => a + b, 0) / n;
+  let num = 0, den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i] - xMean) * (values[i] - yMean);
+    den += (xs[i] - xMean) ** 2;
+  }
+  const slope = den === 0 ? 0 : num / den;
+  const intercept = yMean - slope * xMean;
+  return { slope, intercept, fit: xs.map((x) => intercept + slope * x) };
+}
+
+// ---------- Bodegas ----------
+const BODEGAS = ["OGUA", "BELLO", "ALCAZARES", "MONTEVIDEO", "ORIO"];
+let bodegaActual = BODEGAS[0];
+
+function estadoVacio() {
+  return {
+    horaInicio: "07:00",
+    horaFin: "11:00",
+    ausentismo: false,
+    ausentismoCantidad: 0,
+    ausentismoDetalle: "",
+    notas: "",
+    personas: [],
+    despliegues: [],
+    reintegros: [],
+    historial: [],
+  };
+}
+
+// ---------- Estado (uno independiente por cada bodega) ----------
+let estadosPorBodega = {};
+BODEGAS.forEach((b) => { estadosPorBodega[b] = estadoVacio(); });
+
+// ---------- Borrador automático (localStorage, por si se cierra la página sin guardar) ----------
+const DRAFT_PREFIX = "borrador_indicador_v1_";
+let borradoresRestaurados = {}; // bodega -> fecha/hora en que se guardó el borrador restaurado
+
+function guardarBorrador(bodega) {
+  try {
+    const s = estadosPorBodega[bodega];
+    const datos = {
+      horaInicio: s.horaInicio,
+      horaFin: s.horaFin,
+      ausentismo: s.ausentismo,
+      ausentismoCantidad: s.ausentismoCantidad,
+      ausentismoDetalle: s.ausentismoDetalle,
+      notas: s.notas,
+      personas: s.personas,
+      despliegues: s.despliegues,
+      reintegros: s.reintegros,
+      guardadoEn: new Date().toISOString(),
+    };
+    localStorage.setItem(DRAFT_PREFIX + bodega, JSON.stringify(datos));
+  } catch (e) { /* localStorage no disponible: seguimos sin borrador */ }
+}
+
+function cargarBorrador(bodega) {
+  try {
+    const raw = localStorage.getItem(DRAFT_PREFIX + bodega);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (e) { return null; }
+}
+
+function borrarBorrador(bodega) {
+  try { localStorage.removeItem(DRAFT_PREFIX + bodega); } catch (e) { /* ignorar */ }
+  delete borradoresRestaurados[bodega];
+}
+
+// Al cargar la página, recuperamos cualquier borrador guardado de cada bodega
+// (por si se cerró el navegador o se apagó el computador antes de guardar el día).
+BODEGAS.forEach((b) => {
+  const borrador = cargarBorrador(b);
+  if (!borrador) return;
+  const s = estadosPorBodega[b];
+  s.horaInicio = borrador.horaInicio ?? s.horaInicio;
+  s.horaFin = borrador.horaFin ?? s.horaFin;
+  s.ausentismo = !!borrador.ausentismo;
+  s.ausentismoCantidad = borrador.ausentismoCantidad ?? 0;
+  s.ausentismoDetalle = borrador.ausentismoDetalle ?? "";
+  s.notas = borrador.notas ?? "";
+  s.personas = Array.isArray(borrador.personas) ? borrador.personas : [];
+  s.despliegues = Array.isArray(borrador.despliegues) ? borrador.despliegues : [];
+  s.reintegros = Array.isArray(borrador.reintegros) ? borrador.reintegros : [];
+  borradoresRestaurados[b] = borrador.guardadoEn;
+});
+
+let state = estadosPorBodega[bodegaActual];
+
+// El historial se carga desde Supabase de forma asíncrona (ver cargarHistorial más abajo).
+// historialCompleto guarda TODAS las bodegas; state.historial se filtra según bodegaActual.
+let historialCompleto = [];
+let historialCargando = true;
+let historialError = null;
+
+
+let barChartInstance = null;
+let despliegueBarChartInstance = null;
+let reintegroBarChartInstance = null;
+let pieChartInstance = null;
+let trendChartInstance = null;
+let modalBarChartInstance = null;
+let modalPieChartInstance = null;
+let saveMsgTimeout = null;
+
+// ---------- Cálculos derivados ----------
+function computeDerived() {
+  const ini = toMinutes(state.horaInicio);
+  const fin = toMinutes(state.horaFin);
+  let duracionMin = null;
+  if (ini !== null && fin !== null) {
+    let d = fin - ini;
+    if (d < 0) d += 24 * 60;
+    duracionMin = d;
+  }
+
+  const totalInstaladores = state.personas.reduce((acc, p) => acc + (Number(p.atendidos) || 0), 0);
+
+  const dataPersonas = state.personas.map((p, idx) => {
+    const atendidos = Number(p.atendidos) || 0;
+    // El tiempo trabajado ahora es un dato propio de cada auxiliar (editable),
+    // no la ventana completa compartida entre todos.
+    const minutos = p.minutos !== undefined && p.minutos !== null && p.minutos !== "" ? Number(p.minutos) : null;
+    const tiempoAtencion = minutos !== null && atendidos > 0 ? minutos / atendidos : null;
+    const participacion = totalInstaladores > 0 ? (atendidos / totalInstaladores) * 100 : 0;
+    return {
+      ...p,
+      atendidos,
+      minutos,
+      tiempoAtencion,
+      participacion,
+      color: SLOTS[idx % SLOTS.length],
+      tipoColor: TIPO_COLOR[p.tipo] || THEME.muted,
+    };
+  });
+
+  const statsPorTipo = {};
+  for (const t of TIPOS) statsPorTipo[t] = { atendidos: 0, personas: 0, minutos: 0 };
+  for (const p of dataPersonas) {
+    const t = p.tipo || "Salida";
+    if (!statsPorTipo[t]) statsPorTipo[t] = { atendidos: 0, personas: 0, minutos: 0 };
+    statsPorTipo[t].atendidos += p.atendidos;
+    statsPorTipo[t].personas += 1;
+    if (p.minutos !== null) statsPorTipo[t].minutos += p.minutos;
+  }
+  for (const t of Object.keys(statsPorTipo)) {
+    const g = statsPorTipo[t];
+    g.promedio = g.atendidos > 0 ? g.minutos / g.atendidos : null;
+  }
+
+  const totalMinutosValidos = dataPersonas.reduce((acc, p) => acc + (p.minutos !== null ? p.minutos : 0), 0);
+  const promedioGeneral = totalInstaladores > 0 ? totalMinutosValidos / totalInstaladores : null;
+
+  const validos = dataPersonas.filter((p) => p.tiempoAtencion !== null);
+  let masEficiente = null, menosEficiente = null;
+  if (validos.length > 0) {
+    masEficiente = validos.reduce((a, b) => (a.tiempoAtencion < b.tiempoAtencion ? a : b));
+  }
+  if (validos.length >= 2) {
+    const peor = validos.reduce((a, b) => (a.tiempoAtencion > b.tiempoAtencion ? a : b));
+    if (!masEficiente || peor.id !== masEficiente.id) menosEficiente = peor;
+  }
+
+  return { duracionMin, totalInstaladores, dataPersonas, statsPorTipo, promedioGeneral, masEficiente, menosEficiente };
+}
+
+// ---------- Despliegues y alistamiento ----------
+function computeDespliegues() {
+  const dataDespliegues = state.despliegues.map((p, idx) => {
+    const cantidad = Number(p.cantidad) || 0;
+    const minutos = p.minutos !== undefined && p.minutos !== null && p.minutos !== "" ? Number(p.minutos) : null;
+    const tiempoPorDespliegue = minutos !== null && cantidad > 0 ? minutos / cantidad : null;
+    return { ...p, cantidad, minutos, tiempoPorDespliegue, color: SLOTS[idx % SLOTS.length] };
+  });
+
+  const validos = dataDespliegues.filter(p => p.tiempoPorDespliegue !== null);
+  const top3 = validos
+    .slice()
+    .sort((a, b) => a.tiempoPorDespliegue - b.tiempoPorDespliegue)
+    .slice(0, 3);
+
+  return { dataDespliegues, top3 };
+}
+
+// Acumula despliegues y minutos de TODO el mes en curso (para esta bodega),
+// sumando lo ya guardado en Supabase + lo que llevas digitado hoy sin guardar,
+// para elegir al "auxiliar del mes".
+function computeTopMensual() {
+  const mesActual = new Date().toISOString().slice(0, 7); // "2026-07"
+  const acumulado = {};
+
+  function acumular(nombre, cantidad, minutos) {
+    if (!nombre) return;
+    if (!acumulado[nombre]) acumulado[nombre] = { cantidad: 0, minutos: 0 };
+    acumulado[nombre].cantidad += Number(cantidad) || 0;
+    if (minutos !== null && minutos !== undefined && minutos !== "") {
+      acumulado[nombre].minutos += Number(minutos);
+    }
+  }
+
+  // Días ya guardados en el historial de esta bodega, dentro del mes actual.
+  for (const registro of state.historial) {
+    if (!registro.fecha || !registro.fecha.startsWith(mesActual)) continue;
+    const lista = Array.isArray(registro.despliegues) ? registro.despliegues : [];
+    for (const item of lista) acumular(item.nombre, item.cantidad, item.minutos);
+  }
+
+  // Lo que llevas digitado hoy, aunque todavía no hayas guardado el registro del día.
+  const dd = computeDespliegues();
+  for (const p of dd.dataDespliegues) acumular(p.nombre, p.cantidad, p.minutos);
+
+  const ranking = Object.keys(acumulado)
+    .map((nombre) => {
+      const { cantidad, minutos } = acumulado[nombre];
+      const promedio = cantidad > 0 ? minutos / cantidad : null;
+      return { nombre, cantidad, minutos, promedio };
+    })
+    .filter((p) => p.promedio !== null)
+    .sort((a, b) => a.promedio - b.promedio);
+
+  return ranking.slice(0, 3);
+}
+
+// ---------- Reintegros de equipos ----------
+function computeReintegros() {
+  const dataReintegros = state.reintegros.map((p, idx) => {
+    const cantidad = Number(p.cantidad) || 0;
+    const minutos = p.minutos !== undefined && p.minutos !== null && p.minutos !== "" ? Number(p.minutos) : null;
+    const tiempoPorReintegro = minutos !== null && cantidad > 0 ? minutos / cantidad : null;
+    return { ...p, cantidad, minutos, tiempoPorReintegro, color: SLOTS[idx % SLOTS.length] };
+  });
+
+  const validos = dataReintegros.filter(p => p.tiempoPorReintegro !== null);
+  const top3 = validos
+    .slice()
+    .sort((a, b) => a.tiempoPorReintegro - b.tiempoPorReintegro)
+    .slice(0, 3);
+
+  return { dataReintegros, top3 };
+}
+
+// Acumula reintegros y minutos de TODO el mes en curso (para esta bodega),
+// igual que con despliegues, sumando historial + lo digitado hoy sin guardar.
+function computeTopReintegrosMensual() {
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const acumulado = {};
+
+  function acumular(nombre, cantidad, minutos) {
+    if (!nombre) return;
+    if (!acumulado[nombre]) acumulado[nombre] = { cantidad: 0, minutos: 0 };
+    acumulado[nombre].cantidad += Number(cantidad) || 0;
+    if (minutos !== null && minutos !== undefined && minutos !== "") {
+      acumulado[nombre].minutos += Number(minutos);
+    }
+  }
+
+  for (const registro of state.historial) {
+    if (!registro.fecha || !registro.fecha.startsWith(mesActual)) continue;
+    const lista = Array.isArray(registro.reintegros) ? registro.reintegros : [];
+    for (const item of lista) acumular(item.nombre, item.cantidad, item.minutos);
+  }
+
+  const rr = computeReintegros();
+  for (const p of rr.dataReintegros) acumular(p.nombre, p.cantidad, p.minutos);
+
+  const ranking = Object.keys(acumulado)
+    .map((nombre) => {
+      const { cantidad, minutos } = acumulado[nombre];
+      const promedio = cantidad > 0 ? minutos / cantidad : null;
+      return { nombre, cantidad, minutos, promedio };
+    })
+    .filter((p) => p.promedio !== null)
+    .sort((a, b) => a.promedio - b.promedio);
+
+  return ranking.slice(0, 3);
+}
+
+// Acumula atendidos y minutos de TODO el mes en curso (para esta bodega),
+// usando el detalle de "Personas en ventana" guardado en el historial + lo digitado hoy.
+function computeTopVentanaMensual() {
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const acumulado = {};
+
+  function acumular(nombre, atendidos, minutos) {
+    if (!nombre) return;
+    if (!acumulado[nombre]) acumulado[nombre] = { atendidos: 0, minutos: 0 };
+    acumulado[nombre].atendidos += Number(atendidos) || 0;
+    if (minutos !== null && minutos !== undefined && minutos !== "") {
+      acumulado[nombre].minutos += Number(minutos);
+    }
+  }
+
+  for (const registro of state.historial) {
+    if (!registro.fecha || !registro.fecha.startsWith(mesActual)) continue;
+    const lista = Array.isArray(registro.detalle) ? registro.detalle : [];
+    for (const item of lista) acumular(item.nombre, item.atendidos, item.minutos);
+  }
+
+  const d = computeDerived();
+  for (const p of d.dataPersonas) acumular(p.nombre, p.atendidos, p.minutos);
+
+  const ranking = Object.keys(acumulado)
+    .map((nombre) => {
+      const { atendidos, minutos } = acumulado[nombre];
+      const promedio = atendidos > 0 ? minutos / atendidos : null;
+      return { nombre, atendidos, minutos, promedio };
+    })
+    .filter((p) => p.promedio !== null)
+    .sort((a, b) => a.promedio - b.promedio);
+
+  return ranking.slice(0, 3);
+}
+
+// ---------- Render: Ventana de tiempo / franja ----------
+function renderFranja(d) {
+  const wrap = document.getElementById("franjaWrap");
+  document.getElementById("duracionDisplay").textContent = fmtMin(d.duracionMin);
+  if (!d.duracionMin) { wrap.innerHTML = `<div class="empty-msg">Define la hora inicial y final para ver el reparto.</div>`; return; }
+
+  let bars = "";
+  if (d.totalInstaladores > 0) {
+    bars = d.dataPersonas.map(p =>
+      `<div style="width:${p.participacion}%; background:${p.color};" title="${escapeHtml(p.nombre)}: ${fmtNum(p.participacion)}%"></div>`
+    ).join("");
+  } else {
+    bars = `<div style="width:100%; background:${THEME.panelAlt};"></div>`;
+  }
+  const legend = TIPOS.map(t =>
+    `<div class="legend-dot"><span class="dot" style="background:${TIPO_COLOR[t]}"></span>${t}</div>`
+  ).join("");
+  wrap.innerHTML = `
+    <p class="hint">Reparto del turno según instaladores atendidos por cada persona.</p>
+    <div class="franja">${bars}</div>
+    <div class="legend-row">${legend}</div>
+  `;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---------- Render: lista de personas ----------
+function auxiliarOptions(selected) {
+  const opts = [];
+  if (!auxiliares.includes(selected)) opts.push(`<option value="${escapeHtml(selected)}">${escapeHtml(selected)}</option>`);
+  for (const nombre of auxiliares) {
+    opts.push(`<option value="${escapeHtml(nombre)}" ${nombre === selected ? "selected" : ""}>${escapeHtml(nombre)}</option>`);
+  }
+  return opts.join("");
+}
+function tipoOptions(selected) {
+  return TIPOS.map(t => `<option value="${t}" ${t === selected ? "selected" : ""}>${t}</option>`).join("");
+}
+
+function renderPersonasList(d) {
+  const container = document.getElementById("personasList");
+  if (d.dataPersonas.length === 0) {
+    container.innerHTML = `<div class="empty-msg">Agrega a las personas encargadas de la ventana para comenzar.</div>`;
+    return;
+  }
+  container.innerHTML = d.dataPersonas.map(p => `
+    <div class="persona-row" data-id="${p.id}">
+      <span class="dot" style="background:${p.tipoColor}; width:10px; height:10px;"></span>
+      <select class="nombre" data-action="nombre" data-id="${p.id}">${auxiliarOptions(p.nombre)}</select>
+      <select class="tipo-badge-select" data-action="tipo" data-id="${p.id}" style="color:${p.tipoColor}; background:#12161D; border:1px solid ${THEME.border}; border-radius:6px; padding:6px 8px; font-size:12px;">${tipoOptions(p.tipo)}</select>
+      <div class="atendidos-field">
+        Instaladores atendidos
+        <input type="number" min="0" value="${p.atendidos}" data-action="atendidos" data-id="${p.id}">
+      </div>
+      <div class="atendidos-field">
+        Minutos trabajados
+        <input type="number" min="0" step="1" placeholder="min" value="${p.minutos !== null ? p.minutos : ""}" data-action="minutos" data-id="${p.id}">
+      </div>
+      <div class="tiempo-box" title="Minutos ÷ instaladores atendidos">${p.tiempoAtencion !== null ? fmtNum(p.tiempoAtencion) + " min/inst." : "—"}</div>
+      <button class="icon-btn" data-action="eliminar" data-id="${p.id}" title="Eliminar" aria-label="Eliminar ${escapeHtml(p.nombre)}">🗑</button>
+    </div>
+  `).join("");
+}
+
+function renderDesplieguesList(dd) {
+  const container = document.getElementById("desplieguesList");
+  if (dd.dataDespliegues.length === 0) {
+    container.innerHTML = `<div class="empty-msg">Agrega a los auxiliares con sus despliegues del día para comenzar.</div>`;
+    return;
+  }
+  container.innerHTML = dd.dataDespliegues.map(p => `
+    <div class="persona-row" data-id="${p.id}">
+      <span class="dot" style="background:${p.color}; width:10px; height:10px;"></span>
+      <select class="nombre" data-action="nombreDespliegue" data-id="${p.id}">${auxiliarOptions(p.nombre)}</select>
+      <div class="atendidos-field">
+        Cantidad de despliegues
+        <input type="number" min="0" value="${p.cantidad}" data-action="cantidadDespliegue" data-id="${p.id}">
+      </div>
+      <div class="atendidos-field">
+        Minutos en alistamiento
+        <input type="number" min="0" step="1" placeholder="min" value="${p.minutos !== null ? p.minutos : ""}" data-action="minutosDespliegue" data-id="${p.id}">
+      </div>
+      <div class="tiempo-box" title="Minutos ÷ cantidad de despliegues">${p.tiempoPorDespliegue !== null ? fmtNum(p.tiempoPorDespliegue) + " min/desp." : "—"}</div>
+      <button class="icon-btn" data-action="eliminarDespliegue" data-id="${p.id}" title="Eliminar" aria-label="Eliminar ${escapeHtml(p.nombre)}">🗑</button>
+    </div>
+  `).join("");
+}
+
+function renderTopDespliegues() {
+  const container = document.getElementById("topDespliegues");
+  const ranking = computeTopMensual();
+  if (ranking.length === 0) {
+    container.innerHTML = `<div class="empty-msg">Agrega despliegues con sus minutos de alistamiento para ver el acumulado del mes.</div>`;
+    return;
+  }
+  const medallas = ["🥇", "🥈", "🥉"];
+  const clases = ["top1", "top2", "top3"];
+  container.innerHTML = ranking.map((p, idx) => `
+    <div class="rank-row ${clases[idx]}">
+      <div class="rank-medal">${medallas[idx]}</div>
+      <div class="rank-info">
+        <div class="rank-name">${escapeHtml(p.nombre)}</div>
+        <div class="rank-sub">${p.cantidad} despliegues en el mes · ${fmtNum(p.minutos)} min en alistamiento</div>
+      </div>
+      <div class="rank-value">${fmtNum(p.promedio)}<span class="unit">min/desp.</span></div>
+    </div>
+  `).join("");
+}
+
+function renderReintegrosList(rr) {
+  const container = document.getElementById("reintegrosList");
+  if (rr.dataReintegros.length === 0) {
+    container.innerHTML = `<div class="empty-msg">Agrega a los auxiliares con sus reintegros del día para comenzar.</div>`;
+    return;
+  }
+  container.innerHTML = rr.dataReintegros.map(p => `
+    <div class="persona-row" data-id="${p.id}">
+      <span class="dot" style="background:${p.color}; width:10px; height:10px;"></span>
+      <select class="nombre" data-action="nombreReintegro" data-id="${p.id}">${auxiliarOptions(p.nombre)}</select>
+      <div class="atendidos-field">
+        Cantidad de reintegros
+        <input type="number" min="0" value="${p.cantidad}" data-action="cantidadReintegro" data-id="${p.id}">
+      </div>
+      <div class="atendidos-field">
+        Minutos en reintegro
+        <input type="number" min="0" step="1" placeholder="min" value="${p.minutos !== null ? p.minutos : ""}" data-action="minutosReintegro" data-id="${p.id}">
+      </div>
+      <div class="tiempo-box" title="Minutos ÷ cantidad de reintegros">${p.tiempoPorReintegro !== null ? fmtNum(p.tiempoPorReintegro) + " min/reint." : "—"}</div>
+      <button class="icon-btn" data-action="eliminarReintegro" data-id="${p.id}" title="Eliminar" aria-label="Eliminar ${escapeHtml(p.nombre)}">🗑</button>
+    </div>
+  `).join("");
+}
+
+function renderTopReintegros() {
+  const container = document.getElementById("topReintegros");
+  const ranking = computeTopReintegrosMensual();
+  if (ranking.length === 0) {
+    container.innerHTML = `<div class="empty-msg">Agrega reintegros con sus minutos para ver el acumulado del mes.</div>`;
+    return;
+  }
+  const medallas = ["🥇", "🥈", "🥉"];
+  const clases = ["top1", "top2", "top3"];
+  container.innerHTML = ranking.map((p, idx) => `
+    <div class="rank-row ${clases[idx]}">
+      <div class="rank-medal">${medallas[idx]}</div>
+      <div class="rank-info">
+        <div class="rank-name">${escapeHtml(p.nombre)}</div>
+        <div class="rank-sub">${p.cantidad} reintegros en el mes · ${fmtNum(p.minutos)} min</div>
+      </div>
+      <div class="rank-value">${fmtNum(p.promedio)}<span class="unit">min/reint.</span></div>
+    </div>
+  `).join("");
+}
+
+function renderTopVentana() {
+  const container = document.getElementById("topVentana");
+  const ranking = computeTopVentanaMensual();
+  if (ranking.length === 0) {
+    container.innerHTML = `<div class="empty-msg">Agrega personas en ventana con sus minutos trabajados para ver el acumulado del mes.</div>`;
+    return;
+  }
+  const medallas = ["🥇", "🥈", "🥉"];
+  const clases = ["top1", "top2", "top3"];
+  container.innerHTML = ranking.map((p, idx) => `
+    <div class="rank-row ${clases[idx]}">
+      <div class="rank-medal">${medallas[idx]}</div>
+      <div class="rank-info">
+        <div class="rank-name">${escapeHtml(p.nombre)}</div>
+        <div class="rank-sub">${p.atendidos} instaladores atendidos en el mes · ${fmtNum(p.minutos)} min</div>
+      </div>
+      <div class="rank-value">${fmtNum(p.promedio)}<span class="unit">min/inst.</span></div>
+    </div>
+  `).join("");
+}
+
+function renderAddSelect() {
+  for (const id of ["nuevoNombre", "nuevoNombreDespliegue", "nuevoNombreReintegro"]) {
+    const sel = document.getElementById(id);
+    if (!sel) continue;
+    if (auxiliaresCargando) {
+      sel.innerHTML = `<option value="">Cargando auxiliares…</option>`;
+      continue;
+    }
+    if (auxiliares.length === 0) {
+      sel.innerHTML = `<option value="">Agrega un auxiliar nuevo primero →</option>`;
+      continue;
+    }
+    sel.innerHTML = auxiliares.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+  }
+}
+
+// ---------- Render: dashboard ----------
+function renderDashboard(d) {
+  const grid = document.getElementById("dashboardGrid");
+  const salida = d.statsPorTipo["Salida"] || { atendidos: 0, personas: 0, promedio: null };
+  const devolucion = d.statsPorTipo["Devolución"] || { atendidos: 0, personas: 0, promedio: null };
+  const cards = [
+    { label: "Duración de la ventana", value: fmtMin(d.duracionMin) },
+    { label: "Total instaladores atendidos", value: d.totalInstaladores },
+    { label: "Tiempo promedio de atención", value: d.promedioGeneral !== null ? fmtNum(d.promedioGeneral) + " min" : "—", color: THEME.accent },
+    { label: `Promedio Salidas (${salida.personas} pers.)`, value: salida.promedio !== null ? fmtNum(salida.promedio) + " min" : "—", color: TIPO_COLOR["Salida"] },
+    { label: `Promedio Devolución (${devolucion.personas} pers.)`, value: devolucion.promedio !== null ? fmtNum(devolucion.promedio) + " min" : "—", color: TIPO_COLOR["Devolución"] },
+  ];
+  grid.innerHTML = cards.map(c => `
+    <div class="stat-card">
+      <div class="stat-label">${escapeHtml(c.label)}</div>
+      <div class="stat-value" style="color:${c.color || THEME.text}">${c.value}</div>
+    </div>
+  `).join("");
+}
+
+// ---------- Render: recuadros destacados ----------
+function highlightCardHtml(tipo, persona) {
+  const esMejor = tipo === "mejor";
+  const color = esMejor ? THEME.good : THEME.bad;
+  const glow = esMejor ? "rgba(47,217,168,0.10)" : "rgba(240,85,90,0.10)";
+  const icon = esMejor ? "🏆" : "⚠";
+  const titulo = esMejor ? "Mayor rendimiento" : "Menor rendimiento";
+  const leyenda = esMejor ? "Menor tiempo por instalador atendido" : "Mayor tiempo por instalador atendido — requiere atención";
+
+  if (!persona) {
+    return `<div class="highlight-card ${tipo}"><div class="highlight-empty">${esMejor ? "Sin datos suficientes todavía." : "Se necesitan al menos 2 personas con datos para comparar."}</div></div>`;
+  }
+  return `
+    <div class="highlight-card ${tipo}">
+      <div class="glow" style="background:radial-gradient(circle at top right, ${glow}, transparent 70%);"></div>
+      <div class="highlight-top">
+        <div>
+          <div class="highlight-tag" style="color:${color};">${icon} ${titulo}</div>
+          <div class="highlight-name">${escapeHtml(persona.nombre)}</div>
+          <div class="highlight-meta"><span class="dot" style="background:${persona.tipoColor}"></span>${persona.tipo} · ${persona.atendidos} instaladores atendidos</div>
+        </div>
+        <div>
+          <div class="highlight-value" style="color:${color};">${fmtNum(persona.tiempoAtencion)}</div>
+          <div class="highlight-unit">min / instalador</div>
+        </div>
+      </div>
+      <div class="highlight-note">${leyenda}</div>
+    </div>
+  `;
+}
+
+function renderHighlights(d) {
+  const grid = document.getElementById("highlightGrid");
+  if (!d.masEficiente && !d.menosEficiente) { grid.innerHTML = ""; return; }
+  grid.innerHTML = highlightCardHtml("mejor", d.masEficiente) + highlightCardHtml("peor", d.menosEficiente);
+}
+
+// ---------- Render: gráfico de barras ----------
+function renderBarChart(d) {
+  const canvas = document.getElementById("barChart");
+  canvas.parentElement.style.height = Math.max(240, d.dataPersonas.length * 44 + 40) + "px";
+  const labels = d.dataPersonas.map(p => p.nombre);
+  const values = d.dataPersonas.map(p => p.tiempoAtencion);
+  const colors = d.dataPersonas.map(p => p.color);
+  const tipos = d.dataPersonas.map(p => p.tipo);
+  const maxValor = values.reduce((m, v) => (v !== null && v > m ? v : m), 0);
+
+  if (barChartInstance) barChartInstance.destroy();
+  barChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, maxBarThickness: 26 }] },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 46 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: THEME.panelAlt,
+          borderColor: THEME.border,
+          borderWidth: 1,
+          titleColor: THEME.text,
+          bodyColor: THEME.text,
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.raw;
+              return (v !== null ? fmtNum(v) + " min" : "—") + " · " + tipos[ctx.dataIndex];
+            }
+          }
+        },
+        datalabels: {
+          anchor: "end",
+          align: "end",
+          clamp: true,
+          color: THEME.text,
+          font: { size: 11, weight: "bold" },
+          formatter: (value) => (value !== null && value !== undefined ? fmtNum(value) + " min" : "—")
+        }
+      },
+      scales: {
+        x: {
+          suggestedMax: maxValor > 0 ? maxValor * 1.22 : 1,
+          title: { display: true, text: "minutos por instalador", color: THEME.muted, font: { size: 11 } },
+          ticks: { color: THEME.muted },
+          grid: { color: THEME.grid }
+        },
+        y: {
+          ticks: { color: THEME.text, font: { size: 12 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderDespliegueBarChart(dd) {
+  const canvas = document.getElementById("despliegueBarChart");
+  canvas.parentElement.style.height = Math.max(240, dd.dataDespliegues.length * 44 + 40) + "px";
+  const labels = dd.dataDespliegues.map(p => p.nombre);
+  const values = dd.dataDespliegues.map(p => p.tiempoPorDespliegue);
+  const colors = dd.dataDespliegues.map(p => p.color);
+  const maxValor = values.reduce((m, v) => (v !== null && v > m ? v : m), 0);
+
+  if (despliegueBarChartInstance) despliegueBarChartInstance.destroy();
+  despliegueBarChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, maxBarThickness: 26 }] },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 46 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: THEME.panelAlt,
+          borderColor: THEME.border,
+          borderWidth: 1,
+          titleColor: THEME.text,
+          bodyColor: THEME.text,
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.raw;
+              return (v !== null ? fmtNum(v) + " min/desp." : "—");
+            }
+          }
+        },
+        datalabels: {
+          anchor: "end",
+          align: "end",
+          clamp: true,
+          color: THEME.text,
+          font: { size: 11, weight: "bold" },
+          formatter: (value) => (value !== null && value !== undefined ? fmtNum(value) + " min" : "—")
+        }
+      },
+      scales: {
+        x: {
+          suggestedMax: maxValor > 0 ? maxValor * 1.22 : 1,
+          title: { display: true, text: "minutos por despliegue", color: THEME.muted, font: { size: 11 } },
+          ticks: { color: THEME.muted },
+          grid: { color: THEME.grid }
+        },
+        y: {
+          ticks: { color: THEME.text, font: { size: 12 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderReintegroBarChart(rr) {
+  const canvas = document.getElementById("reintegroBarChart");
+  canvas.parentElement.style.height = Math.max(240, rr.dataReintegros.length * 44 + 40) + "px";
+  const labels = rr.dataReintegros.map(p => p.nombre);
+  const values = rr.dataReintegros.map(p => p.tiempoPorReintegro);
+  const colors = rr.dataReintegros.map(p => p.color);
+  const maxValor = values.reduce((m, v) => (v !== null && v > m ? v : m), 0);
+
+  if (reintegroBarChartInstance) reintegroBarChartInstance.destroy();
+  reintegroBarChartInstance = new Chart(canvas, {
+    type: "bar",
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, maxBarThickness: 26 }] },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { right: 46 } },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: THEME.panelAlt,
+          borderColor: THEME.border,
+          borderWidth: 1,
+          titleColor: THEME.text,
+          bodyColor: THEME.text,
+          callbacks: {
+            label: (ctx) => {
+              const v = ctx.raw;
+              return (v !== null ? fmtNum(v) + " min/reint." : "—");
+            }
+          }
+        },
+        datalabels: {
+          anchor: "end",
+          align: "end",
+          clamp: true,
+          color: THEME.text,
+          font: { size: 11, weight: "bold" },
+          formatter: (value) => (value !== null && value !== undefined ? fmtNum(value) + " min" : "—")
+        }
+      },
+      scales: {
+        x: {
+          suggestedMax: maxValor > 0 ? maxValor * 1.22 : 1,
+          title: { display: true, text: "minutos por reintegro", color: THEME.muted, font: { size: 11 } },
+          ticks: { color: THEME.muted },
+          grid: { color: THEME.grid }
+        },
+        y: {
+          ticks: { color: THEME.text, font: { size: 12 } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+// ---------- Render: gráfico de pastel ----------
+function renderPieChart(d) {
+  const canvas = document.getElementById("pieChart");
+  const legendEl = document.getElementById("pieLegend");
+  const values = TIPOS.map(t => (d.statsPorTipo[t] ? d.statsPorTipo[t].atendidos : 0));
+  const total = d.totalInstaladores;
+
+  if (pieChartInstance) pieChartInstance.destroy();
+
+  if (total === 0) {
+    canvas.parentElement.style.display = "none";
+    legendEl.innerHTML = `<div class="empty-msg">Registra instaladores atendidos para ver la comparación.</div>`;
+    return;
+  }
+  canvas.parentElement.style.display = "block";
+
+  pieChartInstance = new Chart(canvas, {
+    type: "doughnut",
+    data: {
+      labels: TIPOS,
+      datasets: [{ data: values, backgroundColor: TIPOS.map(t => TIPO_COLOR[t]), borderWidth: 0 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "60%",
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: THEME.panelAlt, borderColor: THEME.border, borderWidth: 1,
+          titleColor: THEME.text, bodyColor: THEME.text,
+          callbacks: {
+            label: (ctx) => `${fmtNum((ctx.raw / total) * 100)}%`
+          }
+        },
+        datalabels: {
+          color: "#0B0D10",
+          font: { size: 13, weight: "bold" },
+          formatter: (value) => `${fmtNum((value / total) * 100, 0)}%`
+        }
+      }
+    }
+  });
+
+  legendEl.innerHTML = TIPOS.map((t, i) => {
+    const cant = values[i];
+    const pct = total > 0 ? (cant / total) * 100 : 0;
+    return `
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <span class="dot" style="background:${TIPO_COLOR[t]}; width:12px; height:12px;"></span>
+        <div>
+          <div style="font-size:14px; font-weight:600;">${t}</div>
+          <div style="font-size:12px; color:${THEME.muted};">${fmtNum(pct)}% del total</div>
+        </div>
+      </div>
+    `;
+  }).join("") + `<div style="font-size:12px; color:${THEME.muted}; padding-top:8px; border-top:1px solid ${THEME.border};">Total: ${total} instaladores atendidos</div>`;
+}
+
+// ---------- Render: historial y tendencia ----------
+// ---------- Modal: ver detalle de un registro guardado ----------
+function cerrarModal() {
+  document.getElementById("modalOverlay").style.display = "none";
+  if (modalBarChartInstance) { modalBarChartInstance.destroy(); modalBarChartInstance = null; }
+  if (modalPieChartInstance) { modalPieChartInstance.destroy(); modalPieChartInstance = null; }
+}
+
+function abrirDetalleRegistro(id) {
+  const r = state.historial.find(x => String(x.id) === String(id));
+  if (!r) return;
+
+  document.getElementById("modalEyebrow").textContent = `${bodegaActual} · ${r.horaInicio}–${r.horaFin}`;
+  document.getElementById("modalTitulo").textContent = `Registro del ${r.fecha}`;
+
+  const detalle = Array.isArray(r.detalle) ? r.detalle : [];
+  const despliegues = Array.isArray(r.despliegues) ? r.despliegues : [];
+
+  const statsHtml = `
+    <div class="grid" style="margin-bottom:4px;">
+      <div class="stat-card"><div class="stat-label">Total instaladores</div><div class="stat-value">${r.totalInstaladores ?? "—"}</div></div>
+      <div class="stat-card"><div class="stat-label">Tiempo promedio</div><div class="stat-value" style="color:${THEME.accent}">${r.promedioGeneral != null ? fmtNum(r.promedioGeneral) + " min" : "—"}</div></div>
+      <div class="stat-card"><div class="stat-label">Prom. Salidas</div><div class="stat-value" style="color:${TIPO_COLOR["Salida"]}">${r.promedioSalida != null ? fmtNum(r.promedioSalida) + " min" : "—"}</div></div>
+      <div class="stat-card"><div class="stat-label">Prom. Devolución</div><div class="stat-value" style="color:${TIPO_COLOR["Devolución"]}">${r.promedioDevolucion != null ? fmtNum(r.promedioDevolucion) + " min" : "—"}</div></div>
+    </div>
+  `;
+
+  const novedadesHtml = (r.ausentismo || r.notas)
+    ? `<div class="empty-msg" style="text-align:left; color:${r.ausentismo ? THEME.bad : THEME.muted};">
+        ${r.ausentismo ? `⚠ Ausentismo: ${r.ausentismoCantidad || ""}${r.ausentismoDetalle ? " · " + escapeHtml(r.ausentismoDetalle) : ""}` : ""}
+        ${r.notas ? `${r.ausentismo ? "<br>" : ""}📝 ${escapeHtml(r.notas)}` : ""}
+      </div>`
+    : "";
+
+  let desplieguesHtml = "";
+  if (despliegues.length > 0) {
+    const top3 = despliegues
+      .filter(p => p.tiempoPorDespliegue != null)
+      .slice()
+      .sort((a, b) => a.tiempoPorDespliegue - b.tiempoPorDespliegue)
+      .slice(0, 3);
+    const medallas = ["🥇", "🥈", "🥉"];
+    desplieguesHtml = `
+      <div class="modal-section-title">🚀 Despliegues y alistamiento de ese día</div>
+      ${top3.map((p, idx) => `
+        <div class="modal-rank-row">
+          <div class="medal">${medallas[idx]}</div>
+          <div class="info">
+            <div class="name">${escapeHtml(p.nombre)}</div>
+            <div class="sub">${p.cantidad} despliegues · ${fmtNum(p.minutos)} min en alistamiento</div>
+          </div>
+          <div class="val">${fmtNum(p.tiempoPorDespliegue)} min/desp.</div>
+        </div>
+      `).join("")}
+    `;
+  }
+
+  document.getElementById("modalBody").innerHTML = `
+    <div class="modal-section-title" style="margin-top:0;">📊 Resumen del día</div>
+    ${statsHtml}
+    ${novedadesHtml}
+    <div class="modal-section-title">▤ Tiempo de atención por persona</div>
+    <div style="position:relative; height:${Math.max(180, detalle.length * 40 + 30)}px;"><canvas id="modalBarChart"></canvas></div>
+    <div class="modal-section-title">◔ Salidas vs. Devolución</div>
+    <div style="max-width:260px; margin:0 auto;"><canvas id="modalPieChart"></canvas></div>
+    ${desplieguesHtml}
+  `;
+
+  document.getElementById("modalOverlay").style.display = "flex";
+
+  // Gráfico de barras del detalle guardado
+  const labels = detalle.map(p => p.nombre);
+  const valores = detalle.map(p => p.tiempoAtencion);
+  const colores = detalle.map((p, idx) => SLOTS[idx % SLOTS.length]);
+  modalBarChartInstance = new Chart(document.getElementById("modalBarChart"), {
+    type: "bar",
+    data: { labels, datasets: [{ data: valores, backgroundColor: colores, borderRadius: 6, maxBarThickness: 24 }] },
+    options: {
+      indexAxis: "y", responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 46 } },
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+          anchor: "end", align: "end", clamp: true, color: THEME.text, font: { size: 11, weight: "bold" },
+          formatter: (v) => (v != null ? fmtNum(v) + " min" : "—")
+        }
+      },
+      scales: {
+        x: { ticks: { color: THEME.muted }, grid: { color: THEME.grid } },
+        y: { ticks: { color: THEME.text, font: { size: 12 } }, grid: { display: false } }
+      }
+    }
+  });
+
+  // Gráfico de pastel del detalle guardado
+  const salidas = detalle.filter(p => p.tipo === "Salida").reduce((a, p) => a + (Number(p.atendidos) || 0), 0);
+  const devoluciones = detalle.filter(p => p.tipo === "Devolución").reduce((a, p) => a + (Number(p.atendidos) || 0), 0);
+  modalPieChartInstance = new Chart(document.getElementById("modalPieChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Salida", "Devolución"],
+      datasets: [{ data: [salidas, devoluciones], backgroundColor: [TIPO_COLOR["Salida"], TIPO_COLOR["Devolución"]], borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: true,
+      plugins: { legend: { position: "bottom", labels: { color: THEME.text } } }
+    }
+  });
+}
+
+function renderHistorial(d) {
+  const body = document.getElementById("historialBody");
+  if (historialCargando) {
+    body.innerHTML = `<div class="empty-msg">Cargando historial desde Supabase…</div>`;
+    if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+    return;
+  }
+  if (historialError) {
+    body.innerHTML = `<div class="empty-msg" style="color:${THEME.bad}">No se pudo conectar con Supabase: ${escapeHtml(historialError)}<br>Revisa la URL, la anon key y que la tabla "${TABLA_HISTORIAL}" exista.</div>`;
+    if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+    return;
+  }
+  if (state.historial.length === 0) {
+    body.innerHTML = `<div class="empty-msg">Aún no hay registros guardados. Guarda el día de hoy para empezar a ver la tendencia.</div>`;
+    if (trendChartInstance) { trendChartInstance.destroy(); trendChartInstance = null; }
+    return;
+  }
+
+  const rows = state.historial.map(r => `
+    <tr>
+      <td>${r.fecha}</td>
+      <td>${r.horaInicio}–${r.horaFin}</td>
+      <td>${r.totalInstaladores}</td>
+      <td style="color:${THEME.accent}">${fmtNum(r.promedioGeneral)} min</td>
+      <td style="color:${TIPO_COLOR["Salida"]}">${r.promedioSalida != null ? fmtNum(r.promedioSalida) + " min" : "—"}</td>
+      <td style="color:${TIPO_COLOR["Devolución"]}">${r.promedioDevolucion != null ? fmtNum(r.promedioDevolucion) + " min" : "—"}</td>
+      <td style="color:${r.ausentismo ? THEME.bad : THEME.muted};">
+        ${r.ausentismo
+          ? `⚠ ${r.ausentismoCantidad || ""}${r.ausentismoDetalle ? " · " + escapeHtml(r.ausentismoDetalle) : ""}`
+          : "—"}
+      </td>
+      <td style="max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(r.notas || "")}">
+        ${r.notas ? escapeHtml(r.notas) : "—"}
+      </td>
+      <td>
+        <button class="icon-btn" data-action="verRegistro" data-id="${r.id}" title="Ver gráficos de este registro">👁</button>
+        <button class="icon-btn" data-action="eliminarRegistro" data-id="${r.id}">🗑</button>
+      </td>
+    </tr>
+  `).join("");
+
+  let trendHtml = "";
+  let tendencia = null;
+  if (state.historial.length >= 2) {
+    const valores = state.historial.map(r => r.promedioGeneral);
+    const reg = linearRegression(valores);
+    if (reg) {
+      const cambioTotal = reg.fit[reg.fit.length - 1] - reg.fit[0];
+      tendencia = { ...reg, cambioTotal };
+      const mejora = cambioTotal < -0.05;
+      const empeora = cambioTotal > 0.05;
+      const color = mejora ? THEME.good : empeora ? THEME.bad : THEME.muted;
+      const icon = mejora ? "▼" : empeora ? "▲" : "▬";
+      let texto;
+      if (mejora) {
+        texto = `El tiempo de atención por instalador está <b style="color:${THEME.good}">bajando</b> (mejora de rendimiento): cambio estimado de <b>${fmtNum(cambioTotal)} min</b> a lo largo de los ${state.historial.length} registros.`;
+      } else if (empeora) {
+        texto = `El tiempo de atención por instalador está <b style="color:${THEME.bad}">subiendo</b> (rendimiento en descenso): cambio estimado de <b>+${fmtNum(cambioTotal)} min</b> a lo largo de los ${state.historial.length} registros.`;
+      } else {
+        texto = `El rendimiento se mantiene estable, sin una tendencia clara al alza o a la baja.`;
+      }
+      trendHtml = `<div class="trend-box" style="border:1px solid ${color};"><span style="color:${color}; font-size:16px;">${icon}</span><div>${texto}</div></div>`;
+    }
+  }
+
+  body.innerHTML = `
+    <div style="overflow-x:auto; margin-bottom:20px;">
+      <table>
+        <thead><tr>
+          <th>Fecha</th><th>Ventana</th><th>Instaladores</th><th>Prom. general</th><th>Prom. salidas</th><th>Prom. devolución</th><th>Ausentismo</th><th>Notas</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${trendHtml}
+    <div style="height:240px;"><canvas id="trendChart"></canvas></div>
+  `;
+
+  if (trendChartInstance) trendChartInstance.destroy();
+  if (tendencia) {
+    const canvas = document.getElementById("trendChart");
+    trendChartInstance = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: state.historial.map(r => r.fecha),
+        datasets: [
+          {
+            label: "Promedio diario",
+            data: state.historial.map(r => Number(r.promedioGeneral.toFixed(2))),
+            borderColor: SLOTS[1], backgroundColor: SLOTS[1], tension: 0.35, pointRadius: 3
+          },
+          {
+            label: "Línea de tendencia",
+            data: tendencia.fit.map(v => Number(v.toFixed(2))),
+            borderColor: THEME.accent, borderDash: [6, 4], pointRadius: 0, tension: 0
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: THEME.muted, font: { size: 12 } } },
+          tooltip: { backgroundColor: THEME.panelAlt, borderColor: THEME.border, borderWidth: 1, titleColor: THEME.text, bodyColor: THEME.text },
+          datalabels: { display: false }
+        },
+        scales: {
+          x: { ticks: { color: THEME.muted, font: { size: 11 } }, grid: { color: THEME.grid } },
+          y: { ticks: { color: THEME.muted }, grid: { color: THEME.grid } }
+        }
+      }
+    });
+  }
+}
+
+// ---------- Auxiliares (lista compartida entre las 5 bodegas, en Supabase) ----------
+async function cargarAuxiliares() {
+  auxiliaresCargando = true;
+  renderAddSelect();
+  const { data, error } = await sb
+    .from(TABLA_AUXILIARES)
+    .select("*")
+    .order("nombre", { ascending: true });
+
+  auxiliaresCargando = false;
+  if (error) {
+    auxiliares = [];
+    const sel = document.getElementById("nuevoNombre");
+    sel.innerHTML = `<option value="">Error cargando auxiliares</option>`;
+  } else {
+    auxiliares = (data || []).map(r => r.nombre);
+  }
+  renderAddSelect();
+  renderAll();
+}
+
+async function agregarAuxiliarNuevo(inputId = "nuevoAuxiliarNombre", msgId = "nuevoAuxiliarMsg") {
+  const input = document.getElementById(inputId);
+  const msgEl = document.getElementById(msgId);
+  const nombre = input.value.trim();
+
+  if (!nombre) {
+    msgEl.innerHTML = `<span style="color:${THEME.bad}">Escribe un nombre antes de agregar.</span>`;
+    return;
+  }
+  const yaExiste = auxiliares.some(n => n.toLowerCase() === nombre.toLowerCase());
+  if (yaExiste) {
+    msgEl.innerHTML = `<span style="color:${THEME.bad}">Ese auxiliar ya está en la lista.</span>`;
+    return;
+  }
+
+  msgEl.textContent = "Guardando en Supabase…";
+  const { data, error } = await sb
+    .from(TABLA_AUXILIARES)
+    .insert({ nombre })
+    .select();
+
+  if (error) {
+    msgEl.innerHTML = `<span style="color:${THEME.bad}">No se pudo guardar: ${escapeHtml(error.message)}</span>`;
+    return;
+  }
+
+  auxiliares = [...auxiliares, nombre].sort((a, b) => a.localeCompare(b));
+  input.value = "";
+  msgEl.innerHTML = `<span style="color:${THEME.good}">"${escapeHtml(nombre)}" agregado a la lista de auxiliares.</span>`;
+  setTimeout(() => { msgEl.innerHTML = ""; }, 3500);
+  renderAddSelect();
+  renderAll();
+}
+
+// ---------- Guardar / eliminar / cargar registro (Supabase) ----------
+async function cargarHistorial() {
+  historialCargando = true;
+  historialError = null;
+  renderAll();
+  const { data, error } = await sb
+    .from(TABLA_HISTORIAL)
+    .select("*")
+    .order("fecha", { ascending: true });
+
+  historialCargando = false;
+  if (error) {
+    historialError = error.message;
+    historialCompleto = [];
+  } else {
+    historialCompleto = (data || []).map(mapRowFromDb);
+  }
+  state.historial = historialCompleto.filter(r => r.bodega === bodegaActual);
+  renderAll();
+}
+
+async function guardarDia() {
+  const d = computeDerived();
+  const msgEl = document.getElementById("saveMsg");
+  if (!d.promedioGeneral) {
+    msgEl.innerHTML = `<div class="save-msg">Completa la ventana y al menos una persona atendida antes de guardar.</div>`;
+    clearTimeout(saveMsgTimeout);
+    saveMsgTimeout = setTimeout(() => { msgEl.innerHTML = ""; }, 3500);
+    return;
+  }
+  const registro = {
+    bodega: bodegaActual,
+    fecha: new Date().toISOString().slice(0, 10),
+    horaInicio: state.horaInicio,
+    horaFin: state.horaFin,
+    duracionMin: d.duracionMin,
+    totalInstaladores: d.totalInstaladores,
+    promedioGeneral: d.promedioGeneral,
+    promedioSalida: d.statsPorTipo["Salida"] ? d.statsPorTipo["Salida"].promedio : null,
+    promedioDevolucion: d.statsPorTipo["Devolución"] ? d.statsPorTipo["Devolución"].promedio : null,
+    ausentismo: state.ausentismo,
+    ausentismoCantidad: state.ausentismo ? state.ausentismoCantidad : 0,
+    ausentismoDetalle: state.ausentismo ? state.ausentismoDetalle.trim() : "",
+    notas: state.notas.trim(),
+    detalle: d.dataPersonas.map(p => ({ nombre: p.nombre, tipo: p.tipo, atendidos: p.atendidos, minutos: p.minutos, tiempoAtencion: p.tiempoAtencion })),
+    despliegues: computeDespliegues().dataDespliegues.map(p => ({ nombre: p.nombre, cantidad: p.cantidad, minutos: p.minutos, tiempoPorDespliegue: p.tiempoPorDespliegue })),
+    reintegros: computeReintegros().dataReintegros.map(p => ({ nombre: p.nombre, cantidad: p.cantidad, minutos: p.minutos, tiempoPorReintegro: p.tiempoPorReintegro })),
+  };
+
+  msgEl.innerHTML = `<div class="save-msg">Guardando en Supabase…</div>`;
+  const { data, error } = await sb
+    .from(TABLA_HISTORIAL)
+    .insert(mapRowToDb(registro))
+    .select();
+
+  if (error) {
+    msgEl.innerHTML = `<div class="save-msg" style="color:${THEME.bad}">No se pudo guardar: ${escapeHtml(error.message)}</div>`;
+    clearTimeout(saveMsgTimeout);
+    saveMsgTimeout = setTimeout(() => { msgEl.innerHTML = ""; }, 5000);
+    return;
+  }
+
+  const nuevaFila = data && data[0] ? mapRowFromDb(data[0]) : null;
+  if (nuevaFila) {
+    historialCompleto = [...historialCompleto, nuevaFila];
+    state.historial = historialCompleto.filter(r => r.bodega === bodegaActual);
+  }
+
+  msgEl.innerHTML = `<div class="save-msg">Registro del día guardado en Supabase (${escapeHtml(bodegaActual)}).</div>`;
+  clearTimeout(saveMsgTimeout);
+  saveMsgTimeout = setTimeout(() => { msgEl.innerHTML = ""; }, 3500);
+  delete borradoresRestaurados[bodegaActual];
+
+  // Reiniciar novedades del turno para el siguiente registro
+  state.ausentismo = false;
+  state.ausentismoCantidad = 0;
+  state.ausentismoDetalle = "";
+  state.notas = "";
+  document.getElementById("ausentismoCheck").checked = false;
+  document.getElementById("ausentismoDetalleWrap").style.display = "none";
+  document.getElementById("ausentismoCantidad").value = 0;
+  document.getElementById("ausentismoDetalle").value = "";
+  document.getElementById("notasTurno").value = "";
+
+  renderAll();
+}
+
+async function eliminarRegistro(id) {
+  const anteriorCompleto = historialCompleto;
+  historialCompleto = historialCompleto.filter(r => r.id !== id); // optimista
+  state.historial = historialCompleto.filter(r => r.bodega === bodegaActual);
+  renderAll();
+
+  const { error } = await sb.from(TABLA_HISTORIAL).delete().eq("id", id);
+  if (error) {
+    historialCompleto = anteriorCompleto; // revertir si falló
+    state.historial = historialCompleto.filter(r => r.bodega === bodegaActual);
+    alert("No se pudo eliminar el registro: " + error.message);
+    renderAll();
+  }
+}
+
+// ---------- Render maestro ----------
+function renderBodegaSelector() {
+  const sel = document.getElementById("bodegaSelector");
+  sel.innerHTML = BODEGAS.map(b =>
+    `<button type="button" class="bodega-pill ${b === bodegaActual ? "active" : ""}" data-bodega="${b}">${b}</button>`
+  ).join("");
+  sel.querySelectorAll(".bodega-pill").forEach(btn => {
+    btn.addEventListener("click", () => cambiarBodega(btn.dataset.bodega));
+  });
+  document.getElementById("bodegaTitle").textContent = bodegaActual;
+  document.getElementById("historialBodegaLabel").textContent = bodegaActual;
+}
+
+function syncFormInputs() {
+  document.getElementById("horaInicio").value = state.horaInicio;
+  document.getElementById("horaFin").value = state.horaFin;
+  document.getElementById("ausentismoCheck").checked = state.ausentismo;
+  document.getElementById("ausentismoDetalleWrap").style.display = state.ausentismo ? "block" : "none";
+  document.getElementById("ausentismoCantidad").value = state.ausentismoCantidad;
+  document.getElementById("ausentismoDetalle").value = state.ausentismoDetalle;
+  document.getElementById("notasTurno").value = state.notas;
+}
+
+function fmtFechaHora(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return d.toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+function renderBorradorAviso() {
+  const cont = document.getElementById("borradorAviso");
+  const guardadoEn = borradoresRestaurados[bodegaActual];
+  if (!guardadoEn) { cont.innerHTML = ""; return; }
+  cont.innerHTML = `
+    <div class="borrador-aviso">
+      <div>💾 Se recuperó un borrador guardado automáticamente en este computador para <b>${bodegaActual}</b> (${fmtFechaHora(guardadoEn)}), ya que no se había guardado el registro del día.</div>
+      <button type="button" id="btnCerrarAvisoBorrador" title="Ocultar aviso">✕</button>
+    </div>
+  `;
+  document.getElementById("btnCerrarAvisoBorrador").addEventListener("click", () => {
+    delete borradoresRestaurados[bodegaActual];
+    cont.innerHTML = "";
+  });
+}
+
+function cambiarBodega(nueva) {
+  if (nueva === bodegaActual) return;
+  bodegaActual = nueva;
+  state = estadosPorBodega[bodegaActual];
+  state.historial = historialCompleto.filter(r => r.bodega === bodegaActual);
+  syncFormInputs();
+  renderAll();
+}
+
+function renderAll() {
+  renderBodegaSelector();
+  renderBorradorAviso();
+  const d = computeDerived();
+  renderFranja(d);
+  renderPersonasList(d);
+  renderDashboard(d);
+  renderHighlights(d);
+  renderTopVentana();
+  renderBarChart(d);
+  renderPieChart(d);
+  renderHistorial(d);
+  const dd = computeDespliegues();
+  renderDesplieguesList(dd);
+  renderTopDespliegues();
+  renderDespliegueBarChart(dd);
+  const rr = computeReintegros();
+  renderReintegrosList(rr);
+  renderTopReintegros();
+  renderReintegroBarChart(rr);
+  guardarBorrador(bodegaActual);
+}
+
+// ---------- Eventos ----------
+document.getElementById("horaInicio").addEventListener("change", (e) => { state.horaInicio = e.target.value; renderAll(); });
+document.getElementById("horaFin").addEventListener("change", (e) => { state.horaFin = e.target.value; renderAll(); });
+
+document.getElementById("ausentismoCheck").addEventListener("change", (e) => {
+  state.ausentismo = e.target.checked;
+  document.getElementById("ausentismoDetalleWrap").style.display = state.ausentismo ? "block" : "none";
+});
+document.getElementById("ausentismoCantidad").addEventListener("input", (e) => {
+  state.ausentismoCantidad = Number(e.target.value) || 0;
+});
+document.getElementById("ausentismoDetalle").addEventListener("input", (e) => {
+  state.ausentismoDetalle = e.target.value;
+});
+document.getElementById("notasTurno").addEventListener("input", (e) => {
+  state.notas = e.target.value;
+});
+
+document.getElementById("personasList").addEventListener("change", (e) => {
+  const action = e.target.dataset.action;
+  const id = e.target.dataset.id;
+  if (!action || !id) return;
+  const persona = state.personas.find(p => p.id === id);
+  if (!persona) return;
+  if (action === "nombre") persona.nombre = e.target.value;
+  if (action === "tipo") persona.tipo = e.target.value;
+  if (action === "atendidos") persona.atendidos = Number(e.target.value);
+  if (action === "minutos") persona.minutos = e.target.value === "" ? null : Number(e.target.value);
+  renderAll();
+});
+
+document.getElementById("personasList").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action='eliminar']");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  state.personas = state.personas.filter(p => p.id !== id);
+  renderAll();
+});
+
+document.getElementById("btnAgregar").addEventListener("click", () => {
+  const nombre = document.getElementById("nuevoNombre").value;
+  if (!nombre) return;
+  const d = computeDerived();
+  state.personas.push({ id: uid(), nombre, tipo: "Salida", atendidos: 0, minutos: d.duracionMin });
+  renderAll();
+});
+
+document.getElementById("desplieguesList").addEventListener("change", (e) => {
+  const action = e.target.dataset.action;
+  const id = e.target.dataset.id;
+  if (!action || !id) return;
+  const item = state.despliegues.find(p => p.id === id);
+  if (!item) return;
+  if (action === "nombreDespliegue") item.nombre = e.target.value;
+  if (action === "cantidadDespliegue") item.cantidad = Number(e.target.value);
+  if (action === "minutosDespliegue") item.minutos = e.target.value === "" ? null : Number(e.target.value);
+  renderAll();
+});
+
+document.getElementById("desplieguesList").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action='eliminarDespliegue']");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  state.despliegues = state.despliegues.filter(p => p.id !== id);
+  renderAll();
+});
+
+document.getElementById("btnAgregarDespliegue").addEventListener("click", () => {
+  const nombre = document.getElementById("nuevoNombreDespliegue").value;
+  if (!nombre) return;
+  state.despliegues.push({ id: uid(), nombre, cantidad: 0, minutos: null });
+  renderAll();
+});
+
+document.getElementById("btnNuevoAuxiliar").addEventListener("click", () => agregarAuxiliarNuevo("nuevoAuxiliarNombre", "nuevoAuxiliarMsg"));
+document.getElementById("nuevoAuxiliarNombre").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") agregarAuxiliarNuevo("nuevoAuxiliarNombre", "nuevoAuxiliarMsg");
+});
+
+document.getElementById("btnNuevoAuxiliarDespliegue").addEventListener("click", () => agregarAuxiliarNuevo("nuevoAuxiliarNombreDespliegue", "nuevoAuxiliarMsgDespliegue"));
+document.getElementById("nuevoAuxiliarNombreDespliegue").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") agregarAuxiliarNuevo("nuevoAuxiliarNombreDespliegue", "nuevoAuxiliarMsgDespliegue");
+});
+
+document.getElementById("reintegrosList").addEventListener("change", (e) => {
+  const action = e.target.dataset.action;
+  const id = e.target.dataset.id;
+  if (!action || !id) return;
+  const item = state.reintegros.find(p => p.id === id);
+  if (!item) return;
+  if (action === "nombreReintegro") item.nombre = e.target.value;
+  if (action === "cantidadReintegro") item.cantidad = Number(e.target.value);
+  if (action === "minutosReintegro") item.minutos = e.target.value === "" ? null : Number(e.target.value);
+  renderAll();
+});
+
+document.getElementById("reintegrosList").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-action='eliminarReintegro']");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  state.reintegros = state.reintegros.filter(p => p.id !== id);
+  renderAll();
+});
+
+document.getElementById("btnAgregarReintegro").addEventListener("click", () => {
+  const nombre = document.getElementById("nuevoNombreReintegro").value;
+  if (!nombre) return;
+  state.reintegros.push({ id: uid(), nombre, cantidad: 0, minutos: null });
+  renderAll();
+});
+
+document.getElementById("btnNuevoAuxiliarReintegro").addEventListener("click", () => agregarAuxiliarNuevo("nuevoAuxiliarNombreReintegro", "nuevoAuxiliarMsgReintegro"));
+document.getElementById("nuevoAuxiliarNombreReintegro").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") agregarAuxiliarNuevo("nuevoAuxiliarNombreReintegro", "nuevoAuxiliarMsgReintegro");
+});
+
+document.getElementById("btnGuardar").addEventListener("click", guardarDia);
+
+document.getElementById("historialBody").addEventListener("click", (e) => {
+  const btnEliminar = e.target.closest("[data-action='eliminarRegistro']");
+  if (btnEliminar) { eliminarRegistro(btnEliminar.dataset.id); return; }
+  const btnVer = e.target.closest("[data-action='verRegistro']");
+  if (btnVer) { abrirDetalleRegistro(btnVer.dataset.id); return; }
+});
+
+document.getElementById("modalCerrar").addEventListener("click", cerrarModal);
+document.getElementById("modalOverlay").addEventListener("click", (e) => {
+  if (e.target.id === "modalOverlay") cerrarModal();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") cerrarModal();
+});
+
+// ---------- Inicio ----------
+syncFormInputs();
+renderAll();
+cargarAuxiliares();
+cargarHistorial();
+</script>
+</body>
+</html>

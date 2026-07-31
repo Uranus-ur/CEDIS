@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicadores Somos Internet (CEDIS)</title>
+<style>
+  :root {
+    --bg: #12161D;
+    --panel: #1B2129;
+    --panel-alt: #20272F;
+    --border: #2B3440;
+    --text: #E7EAEE;
+    --muted: #8B94A3;
+    --faint: #6B7280;
+    --accent: #FF7A3D;
+    --good: #2FD9A8;
+    --bad: #F0555A;
+    --devolucion: #B98CFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 56px 20px 60px; }
+  .eyebrow {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 10px;
+  }
+  h1 {
+    font-family: "Oswald", "Segoe UI", sans-serif;
+    font-size: 30px; font-weight: 700; margin: 0 0 8px;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 40px; max-width: 520px; }
+
+  .grid {
+    display: grid; grid-template-columns: 1fr; gap: 14px;
+  }
+  @media (min-width: 620px) { .grid { grid-template-columns: 1fr 1fr; } }
+
+  .tool-card {
+    display: flex; flex-direction: column; justify-content: space-between;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px; text-decoration: none; color: var(--text);
+    transition: border-color .15s, transform .15s;
+    min-height: 168px;
+    position: relative; overflow: hidden;
+  }
+  .tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .tool-card.disabled { opacity: 0.55; cursor: default; }
+  .tool-card.disabled:hover { border-color: var(--border); transform: none; }
+
+  .tool-icon { font-size: 22px; margin-bottom: 14px; }
+  .tool-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .tool-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .tool-tag {
+    align-self: flex-start; margin-top: 14px; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 999px;
+  }
+  .tool-tag.active { background: rgba(47,217,168,0.12); color: var(--good); }
+  .tool-tag.soon { background: rgba(139,148,163,0.14); color: var(--muted); }
+
+  .add-card {
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    border: 1px dashed var(--border); border-radius: 16px; padding: 22px; min-height: 168px;
+    color: var(--muted); font-size: 13px; text-align: center; gap: 8px;
+  }
+  .add-card .plus { font-size: 22px; color: var(--muted); }
+
+  .footer-note { margin-top: 40px; font-size: 12px; color: var(--muted); text-align: center; }
+
+  .header-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-top">
+    <div>
+      <div class="eyebrow">⛭ Portal de operación</div>
+      <h1>Indicadores Somos Internet (CEDIS)</h1>
+      <p class="subtitle">Selecciona la herramienta que necesitas usar. Cada una vive en su propio archivo, así que puedes actualizarlas por separado sin afectar a las demás.</p>
+    </div>
+  </div>
+
+  <div class="grid">
+
+    <a class="tool-card" href="indicador-atencion-ventana.html">
+      <div>
+        <div class="tool-icon">⏱</div>
+        <div class="tool-title">Indicador de productividad</div>
+        <div class="tool-desc">Tiempo de atención por persona, dashboard, gráficos y tendencia de rendimiento del turno mañana.</div>
+      </div>
+      <span class="tool-tag active">Disponible</span>
+    </a>
+
+    <a class="tool-card" href="reportes.html">
+      <div>
+        <div class="tool-icon">📦</div>
+        <div class="tool-title">Control semanal de salidas</div>
+        <div class="tool-desc">Registro diario por CEDIS de salidas, devoluciones y soporte por equipo, con dashboard, gráficos de tendencia, pronóstico y exportación a Excel.</div>
+      </div>
+      <span class="tool-tag active">Disponible</span>
+    </a>
+
+    <a class="tool-card" href="tareas.html">
+      <div>
+        <div class="tool-icon">📋</div>
+        <div class="tool-title">Tareas Pendientes (Tracker)</div>
+        <div class="tool-desc">Tablero de tareas por sede, área y prioridad, con estados, observaciones, importación desde Excel y archivo histórico.</div>
+      </div>
+      <span class="tool-tag active">Disponible</span>
+    </a>
+
+    <a class="tool-card" href="indicador-semanal-kardex.html">
+      <div>
+        <div class="tool-icon">🔄</div>
+        <div class="tool-title">Indicador Semanal (Kardex)</div>
+        <div class="tool-desc">Salidas y devoluciones por equipo, sincronizadas automáticamente desde Google Sheets. Navega entre bloques semanales y su tendencia histórica.</div>
+      </div>
+      <span class="tool-tag active">Disponible</span>
+    </a>
+
+    <a class="tool-card" href="horas-extra.html">
+      <div>
+        <div class="tool-icon">🕐</div>
+        <div class="tool-title">Gestión de Turnos</div>
+        <div class="tool-desc">Horarios de auxiliares y supervisores, lunes a sábado. Registra horas extra diarias, festivos, y lleva el acumulado y pendientes mes a mes.</div>
+      </div>
+      <span class="tool-tag active">Disponible</span>
+    </a>
+
+    <div class="add-card">
+      <div class="plus">+</div>
+      <div>Aquí se agregará la siguiente herramienta cuando la tengas lista.</div>
+    </div>
+
+  </div>
+  <p class="footer-note">Cada tarjeta enlaza a su propio archivo HTML. Para agregar una nueva herramienta, sube el archivo junto a estos y agrega su tarjeta aquí.</p>
+</div>
+
+</body>
+</html>

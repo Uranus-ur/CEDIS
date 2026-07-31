@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Indicador Semanal (Kardex) · CEDIS</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root {
+    --bg: #12161D;
+    --panel: #1B2129;
+    --panel-alt: #20272F;
+    --border: #2B3440;
+    --text: #E7EAEE;
+    --muted: #8B94A3;
+    --accent: #FF7A3D;
+    --good: #2FD9A8;
+    --bad: #F0555A;
+    --salida: #3DB8FF;
+    --devolucion: #B98CFF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: 56px 20px 60px; }
+  .eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  h1 { font-family: "Oswald", "Segoe UI", sans-serif; font-size: 30px; font-weight: 700; margin: 0 0 8px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 24px; max-width: 560px; }
+  .header-row { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+  .nav-btn {
+    display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 16px; font-size: 13px; font-weight: 600; white-space: nowrap;
+    transition: border-color .15s;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .bodega-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .bodega-pill {
+    font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel-alt); color: var(--muted);
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  .bodega-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .bodega-pill.active { background: var(--accent); border-color: var(--accent); color: #1A0F08; }
+
+  .equipo-chip {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;
+    background: var(--panel-alt); border: 1px solid var(--border); border-radius: 999px;
+    padding: 6px 12px 6px 8px; cursor: pointer; user-select: none; color: var(--muted);
+    transition: all .15s;
+  }
+  .equipo-chip .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; opacity: 0.35; transition: opacity .15s; }
+  .equipo-chip.activo { color: var(--text); border-color: var(--border); }
+  .equipo-chip.activo .dot { opacity: 1; }
+  .equipo-chip input { display: none; }
+  .equipo-chip:hover { border-color: var(--accent); }
+
+  .toggle-etiquetas {
+    display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted);
+    cursor: pointer; user-select: none; margin-bottom: 20px;
+  }
+  .toggle-etiquetas input { display: none; }
+  .toggle-track {
+    width: 38px; height: 21px; background: var(--panel-alt); border: 1px solid var(--border);
+    border-radius: 999px; position: relative; transition: background .15s; flex-shrink: 0;
+  }
+  .toggle-thumb {
+    position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--muted); transition: transform .15s, background .15s;
+  }
+  .toggle-etiquetas input:checked + .toggle-track { background: rgba(255,122,61,0.25); border-color: var(--accent); }
+  .toggle-etiquetas input:checked + .toggle-track .toggle-thumb { transform: translateX(17px); background: var(--accent); }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    padding: 22px; margin-bottom: 20px;
+  }
+  .card-title { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .hint { font-size: 12px; color: var(--muted); margin: 0 0 16px; line-height: 1.5; }
+
+  .semana-nav { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 4px; }
+  .semana-nav button {
+    background: var(--panel-alt); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; width: 34px; height: 34px; font-size: 16px; cursor: pointer;
+  }
+  .semana-nav button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .semana-nav button:disabled { opacity: 0.35; cursor: not-allowed; }
+  .semana-label { text-align: center; min-width: 220px; }
+  .semana-label .rango { font-family: ui-monospace, monospace; font-weight: 700; font-size: 15px; }
+  .semana-label .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  table.tabla-kardex { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 14px; }
+  table.tabla-kardex th {
+    text-align: left; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--border);
+  }
+  table.tabla-kardex td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.tabla-kardex tbody tr:last-child td { border-bottom: none; }
+  table.tabla-kardex td.num { font-family: ui-monospace, monospace; text-align: right; }
+  table.tabla-kardex tr.total td { font-weight: 700; border-top: 2px solid var(--border); }
+
+  .empty-msg { font-size: 13px; color: var(--muted); text-align: center; padding: 24px 10px; }
+
+  select.selector-producto {
+    background: var(--panel-alt); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; outline: none;
+  }
+
+  canvas { max-width: 100%; }
+
+  .pronostico-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel-alt); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; margin-bottom: 6px; font-size: 13px;
+  }
+  .pronostico-row .nombre { flex: 1; font-weight: 600; }
+  .pronostico-row .tendencia { font-size: 12px; font-weight: 700; white-space: nowrap; }
+  .pronostico-row .detalle { font-size: 11px; color: var(--muted); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header-row">
+    <div>
+      <div class="eyebrow">⛭ Sincronizado desde Google Sheets · Kardex</div>
+      <h1>Indicador Semanal <span id="bodegaTitle" style="color:var(--accent);">OGUA</span></h1>
+      <p class="subtitle">Salidas y devoluciones por equipo, tomadas automáticamente del Kardex. Es un indicador de verificación aparte del Control Semanal manual — no lo reemplaza.</p>
+    </div>
+    <a class="nav-btn" href="index.html">← Volver al inicio</a>
+  </div>
+
+  <div class="bodega-selector" id="bodegaSelector"></div>
+
+  <label class="toggle-etiquetas">
+    <input type="checkbox" id="toggleEtiquetasDatos" checked>
+    <span class="toggle-track"><span class="toggle-thumb"></span></span>
+    Mostrar los valores numéricos en los gráficos
+  </label>
+
+  <!-- Navegación entre bloques del Kardex -->
+  <div class="card">
+    <div class="semana-nav">
+      <button type="button" id="btnBloqueAnterior" title="Bloque anterior">‹</button>
+      <div class="semana-label">
+        <div class="rango" id="bloqueRango">—</div>
+        <div class="sub" id="bloqueSub">—</div>
+      </div>
+      <button type="button" id="btnBloqueSiguiente" title="Bloque siguiente">›</button>
+    </div>
+  </div>
+
+  <!-- Tabla del bloque seleccionado -->
+  <div class="card">
+    <div class="card-title">📋 Detalle por equipo</div>
+    <p class="hint">Salidas y devoluciones de cada equipo en el bloque de 7 días seleccionado, para <b id="bodegaTablaLabel">OGUA</b>.</p>
+    <div id="tablaBloque"></div>
+  </div>
+
+  <!-- Gráfico del bloque seleccionado -->
+  <div class="card">
+    <div class="card-title">▤ Salidas vs. Devoluciones por equipo (bloque seleccionado)</div>
+    <div style="position:relative; height:260px;"><canvas id="chartBloque"></canvas></div>
+  </div>
+
+  <!-- Tendencia histórica -->
+  <div class="card">
+    <div class="card-title">📈 Tendencia histórica</div>
+    <p class="hint">Evolución de salidas y devoluciones a lo largo de todos los bloques sincronizados, con proyección (línea punteada) de las próximas 1-2 semanas. Elige un equipo o deja "Todos" para ver el total.</p>
+    <div style="margin-bottom:12px;">
+      <select class="selector-producto" id="selectorProductoTendencia"></select>
+    </div>
+    <div style="position:relative; height:280px;"><canvas id="chartTendencia"></canvas></div>
+  </div>
+
+  <!-- Tendencia por equipo -->
+  <div class="card">
+    <div class="card-title">📈 Tendencia por equipo (Salidas)</div>
+    <p class="hint">La misma tendencia histórica, pero desglosada: una línea por cada equipo. Elige cuáles quieres ver para no saturar la gráfica.</p>
+    <div id="checkboxesEquiposTendencia" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:14px;"></div>
+    <div style="position:relative; height:320px;"><canvas id="chartTendenciaPorEquipo"></canvas></div>
+  </div>
+
+  <!-- Pronóstico de necesidad -->
+  <div class="card">
+    <div class="card-title">🔮 Pronóstico de necesidad (próximas 1-2 semanas)</div>
+    <p class="hint">Proyección calculada por regresión lineal sobre el historial de salidas de cada equipo, más un % de stock de seguridad, para anticipar si vas a necesitar más stock y planear mejor la logística.</p>
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+      <label for="inputSeguridad" style="font-size:12px; color:var(--muted);">% de stock de seguridad</label>
+      <input type="number" id="inputSeguridad" min="0" max="200" step="5" value="20" style="width:90px; background:var(--panel-alt); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:8px 10px; font-size:13px;">
+    </div>
+    <div style="position:relative; height:300px;"><canvas id="chartPronostico"></canvas></div>
+    <div id="pronosticoResumen" style="margin-top:16px;"></div>
+  </div>
+
+</div>
+
+<script>
+// Registrar el plugin de etiquetas de datos para todos los gráficos
+if (window.ChartDataLabels) Chart.register(ChartDataLabels);
+
+// ---------- Configuración base ----------
+const BODEGAS = ["OGUA", "BELLO", "ALCAZARES", "MONTE VIDEO", "ORIO"];
+let bodegaActual = BODEGAS[0];
+let mostrarEtiquetas = true;
+
+const PRODUCTOS = ["ORB","PHANTOM F2","TV BOX I96 Z8","PHANTOM WIFI 6","SW 2.5G ADMIN","SW 1G ADMIN","UTP CAT 5","UTP CAT 6"];
+const SLOTS = ["#FF7A3D", "#3DB8FF", "#2FD9A8", "#F0C93D", "#B98CFF", "#FF6FA3", "#5CE1E6", "#FFA35C"];
+
+const THEME = {
+  text: "#E7EAEE", muted: "#8B94A3", border: "#2B3440", grid: "rgba(139,148,163,0.12)",
+  panelAlt: "#20272F", accent: "#FF7A3D", good: "#2FD9A8", bad: "#F0555A",
+  salida: "#3DB8FF", devolucion: "#B98CFF",
+};
+
+// ---------- Conexión a Supabase ----------
+// Reemplaza estos dos valores con los de tu proyecto (Settings → API).
+// Es el MISMO proyecto que usan los demás archivos de esta suite.
+const SUPABASE_URL = "https://ifwtjxashfkdytuuqrlu.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_AjKlPDSBmwJ_zxVxL6RxEw_xJcyGQ-p";
+const TABLA_KARDEX = "kardex_semanal";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ---------- Estado ----------
+let bloquesPorBodega = {};   // bodega -> [ {fecha_inicio, fecha_fin, anio, mes, semana, updated_at, porProducto:{}}, ... ] ordenado por fecha
+let indiceBloque = {};       // bodega -> índice del bloque actualmente mostrado
+let cargando = true;
+let errorCarga = null;
+
+let chartBloqueInstance = null;
+let chartTendenciaInstance = null;
+let chartPronosticoInstance = null;
+
+function fmtFechaCorta(iso) {
+  if (!iso) return "—";
+  const meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+  const [y, m, d] = iso.split("-");
+  return `${Number(d)} ${meses[Number(m) - 1]}`;
+}
+function fmtFechaHora(iso) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("es-CO", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ---------- Pronóstico: regresión lineal simple (mismo criterio que reportes.html) ----------
+function calcularRegresion(series) {
+  const n = series.length;
+  if (n === 0) return { slope: 0, intercept: 0 };
+  if (n === 1) return { slope: 0, intercept: series[0].y };
+  const sumX = series.reduce((a, p) => a + p.x, 0);
+  const sumY = series.reduce((a, p) => a + p.y, 0);
+  const sumXY = series.reduce((a, p) => a + p.x * p.y, 0);
+  const sumX2 = series.reduce((a, p) => a + p.x * p.x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  const slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}
+function predecir(reg, x) {
+  return Math.max(0, reg.slope * x + reg.intercept);
+}
+
+// Calcula, para cada equipo, el último dato real y la proyección a +1 y +2 semanas (bloques).
+function calcularPronosticos() {
+  const lista = bloquesDeBodegaActual();
+  const pct = obtenerPorcentajeSeguridad();
+  return PRODUCTOS.map(p => {
+    const serie = lista.map((b, idx) => ({ x: idx, y: b.porProducto[p] ? b.porProducto[p].Salida : 0 }));
+    const reg = calcularRegresion(serie);
+    if (serie.length === 0) return { producto: p, ultimo: 0, pronostico1: 0, pronostico2: 0, pronostico1Seguridad: 0, pronostico2Seguridad: 0, slope: 0 };
+    const ultimoX = serie[serie.length - 1].x;
+    const ultimo = serie[serie.length - 1].y;
+    const pronostico1 = predecir(reg, ultimoX + 1);
+    const pronostico2 = predecir(reg, ultimoX + 2);
+    return {
+      producto: p,
+      ultimo,
+      pronostico1,
+      pronostico2,
+      pronostico1Seguridad: pronostico1 * (1 + pct / 100),
+      pronostico2Seguridad: pronostico2 * (1 + pct / 100),
+      slope: reg.slope,
+    };
+  });
+}
+
+function obtenerPorcentajeSeguridad() {
+  const input = document.getElementById("inputSeguridad");
+  const valor = Number(input ? input.value : 20);
+  return isNaN(valor) || valor < 0 ? 0 : valor;
+}
+
+// ---------- Carga de datos ----------
+async function cargarKardex() {
+  cargando = true;
+  errorCarga = null;
+  renderAll();
+
+  // Supabase limita cada consulta a 1000 filas por defecto. Como esta tabla
+  // ya tiene más que eso acumulado, hay que pedirla en páginas hasta traerla completa.
+  let data = [];
+  let desde = 0;
+  const TAMANO_PAGINA = 1000;
+  let error = null;
+
+  while (true) {
+    const resultado = await sb
+      .from(TABLA_KARDEX)
+      .select("*")
+      .order("fecha_inicio", { ascending: true })
+      .range(desde, desde + TAMANO_PAGINA - 1);
+
+    if (resultado.error) { error = resultado.error; break; }
+    const pagina = resultado.data || [];
+    data = data.concat(pagina);
+    if (pagina.length < TAMANO_PAGINA) break; // ya no hay más páginas
+    desde += TAMANO_PAGINA;
+  }
+
+  cargando = false;
+  if (error) {
+    errorCarga = error.message;
+    renderAll();
+    return;
+  }
+
+  bloquesPorBodega = {};
+  (data || []).forEach(r => {
+    if (!bloquesPorBodega[r.bodega]) bloquesPorBodega[r.bodega] = [];
+    let bloque = bloquesPorBodega[r.bodega].find(b => b.fecha_inicio === r.fecha_inicio && b.fecha_fin === r.fecha_fin);
+    if (!bloque) {
+      bloque = { fecha_inicio: r.fecha_inicio, fecha_fin: r.fecha_fin, anio: r.anio, mes: r.mes, semana: r.semana, updated_at: r.updated_at, porProducto: {} };
+      bloquesPorBodega[r.bodega].push(bloque);
+    }
+    if (!bloque.porProducto[r.producto]) bloque.porProducto[r.producto] = { Salida: 0, "Devolución": 0 };
+    bloque.porProducto[r.producto][r.tipo] = (bloque.porProducto[r.producto][r.tipo] || 0) + r.cantidad;
+    if (new Date(r.updated_at) > new Date(bloque.updated_at)) bloque.updated_at = r.updated_at;
+  });
+
+  Object.keys(bloquesPorBodega).forEach(b => {
+    bloquesPorBodega[b].sort((a, c) => a.fecha_inicio.localeCompare(c.fecha_inicio));
+    if (indiceBloque[b] === undefined) indiceBloque[b] = bloquesPorBodega[b].length - 1; // el más reciente por defecto
+  });
+
+  renderAll();
+}
+
+// ---------- Render: selector de bodega ----------
+function renderBodegaSelector() {
+  const sel = document.getElementById("bodegaSelector");
+  sel.innerHTML = BODEGAS.map(b =>
+    `<button type="button" class="bodega-pill ${b === bodegaActual ? "active" : ""}" data-bodega="${b}">${b}</button>`
+  ).join("");
+  sel.querySelectorAll(".bodega-pill").forEach(btn => {
+    btn.addEventListener("click", () => cambiarBodega(btn.dataset.bodega));
+  });
+  document.getElementById("bodegaTitle").textContent = bodegaActual;
+  document.getElementById("bodegaTablaLabel").textContent = bodegaActual;
+}
+
+function cambiarBodega(nueva) {
+  if (nueva === bodegaActual) return;
+  bodegaActual = nueva;
+  renderAll();
+}
+
+// ---------- Render: navegación de bloques ----------
+function bloquesDeBodegaActual() {
+  return bloquesPorBodega[bodegaActual] || [];
+}
+
+function renderNavegacionBloque() {
+  const lista = bloquesDeBodegaActual();
+  const idx = indiceBloque[bodegaActual];
+  const btnPrev = document.getElementById("btnBloqueAnterior");
+  const btnNext = document.getElementById("btnBloqueSiguiente");
+
+  if (lista.length === 0) {
+    document.getElementById("bloqueRango").textContent = "Sin datos sincronizados";
+    document.getElementById("bloqueSub").textContent = bodegaActual === "BELLO" ? "Bodega aún no abierta" : "—";
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    return;
+  }
+
+  const bloque = lista[idx];
+  document.getElementById("bloqueRango").textContent = `${fmtFechaCorta(bloque.fecha_inicio)} — ${fmtFechaCorta(bloque.fecha_fin)}`;
+  document.getElementById("bloqueSub").textContent = `Bloque ${bloque.semana} · ${bloque.mes}/${bloque.anio} · actualizado ${fmtFechaHora(bloque.updated_at)}`;
+  btnPrev.disabled = idx <= 0;
+  btnNext.disabled = idx >= lista.length - 1;
+}
+
+document.getElementById("btnBloqueAnterior").addEventListener("click", () => {
+  if (indiceBloque[bodegaActual] > 0) { indiceBloque[bodegaActual]--; renderAll(); }
+});
+document.getElementById("btnBloqueSiguiente").addEventListener("click", () => {
+  const lista = bloquesDeBodegaActual();
+  if (indiceBloque[bodegaActual] < lista.length - 1) { indiceBloque[bodegaActual]++; renderAll(); }
+});
+
+// ---------- Render: tabla y gráfico del bloque ----------
+function renderTablaYChartBloque() {
+  const cont = document.getElementById("tablaBloque");
+  const lista = bloquesDeBodegaActual();
+  const idx = indiceBloque[bodegaActual];
+
+  if (lista.length === 0) {
+    cont.innerHTML = `<div class="empty-msg">Todavía no hay datos del Kardex sincronizados para ${escapeHtml(bodegaActual)}.</div>`;
+    if (chartBloqueInstance) { chartBloqueInstance.destroy(); chartBloqueInstance = null; }
+    return;
+  }
+
+  const bloque = lista[idx];
+  let totalSalida = 0, totalDevol = 0;
+  const filas = PRODUCTOS.map(p => {
+    const v = bloque.porProducto[p] || { Salida: 0, "Devolución": 0 };
+    totalSalida += v.Salida; totalDevol += v["Devolución"];
+    return `<tr><td>${p}</td><td class="num">${v.Salida}</td><td class="num">${v["Devolución"]}</td></tr>`;
+  }).join("");
+
+  cont.innerHTML = `
+    <table class="tabla-kardex">
+      <thead><tr><th>Equipo</th><th>Salidas</th><th>Devoluciones</th></tr></thead>
+      <tbody>
+        ${filas}
+        <tr class="total"><td>Total</td><td class="num">${totalSalida}</td><td class="num">${totalDevol}</td></tr>
+      </tbody>
+    </table>
+  `;
+
+  const canvas = document.getElementById("chartBloque");
+  const salidas = PRODUCTOS.map(p => (bloque.porProducto[p] ? bloque.porProducto[p].Salida : 0));
+  const devoluciones = PRODUCTOS.map(p => (bloque.porProducto[p] ? bloque.porProducto[p]["Devolución"] : 0));
+
+  if (chartBloqueInstance) chartBloqueInstance.destroy();
+  chartBloqueInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: PRODUCTOS,
+      datasets: [
+        { label: "Salidas", data: salidas, backgroundColor: THEME.salida, borderRadius: 5, maxBarThickness: 26 },
+        { label: "Devoluciones", data: devoluciones, backgroundColor: THEME.devolucion, borderRadius: 5, maxBarThickness: 26 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "top", labels: { color: THEME.text } },
+        datalabels: {
+          display: mostrarEtiquetas,
+          color: THEME.text, font: { size: 10, weight: "bold" }, anchor: "end", align: "end",
+          formatter: (v) => (v > 0 ? v : "")
+        }
+      },
+      scales: {
+        x: { ticks: { color: THEME.muted, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: THEME.muted }, grid: { color: THEME.grid }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ---------- Render: tendencia histórica ----------
+function renderSelectorProductoTendencia() {
+  const sel = document.getElementById("selectorProductoTendencia");
+  if (sel.options.length > 0) return; // ya se armó una vez, no hace falta repetir
+  sel.innerHTML = `<option value="__todos__">Todos los equipos (total)</option>` +
+    PRODUCTOS.map(p => `<option value="${p}">${p}</option>`).join("");
+  sel.addEventListener("change", renderTendencia);
+}
+
+function renderTendencia() {
+  const lista = bloquesDeBodegaActual();
+  const canvas = document.getElementById("chartTendencia");
+  const productoSel = document.getElementById("selectorProductoTendencia").value || "__todos__";
+
+  if (lista.length === 0) {
+    if (chartTendenciaInstance) { chartTendenciaInstance.destroy(); chartTendenciaInstance = null; }
+    return;
+  }
+
+  const seriePara = (prod) => lista.map((b, idx) => ({
+    x: idx,
+    y: prod === "__todos__"
+      ? PRODUCTOS.reduce((acc, p) => acc + (b.porProducto[p] ? b.porProducto[p].Salida : 0), 0)
+      : (b.porProducto[prod] ? b.porProducto[prod].Salida : 0)
+  }));
+
+  const serieSalidas = seriePara(productoSel);
+  const regSalidas = calcularRegresion(serieSalidas);
+  const ultimoX = lista.length - 1;
+
+  const labels = [...lista.map(b => fmtFechaCorta(b.fecha_inicio)), "+1 sem (proy.)", "+2 sem (proy.)"];
+
+  const salidas = lista.map(b => {
+    if (productoSel === "__todos__") return PRODUCTOS.reduce((acc, p) => acc + (b.porProducto[p] ? b.porProducto[p].Salida : 0), 0);
+    return b.porProducto[productoSel] ? b.porProducto[productoSel].Salida : 0;
+  });
+  const devoluciones = lista.map(b => {
+    if (productoSel === "__todos__") return PRODUCTOS.reduce((acc, p) => acc + (b.porProducto[p] ? b.porProducto[p]["Devolución"] : 0), 0);
+    return b.porProducto[productoSel] ? b.porProducto[productoSel]["Devolución"] : 0;
+  });
+
+  // Serie de proyección: null en los puntos históricos (excepto el último, para que la línea conecte)
+  // y los 2 valores proyectados al final.
+  const proyeccion = salidas.map(() => null);
+  proyeccion[proyeccion.length - 1] = salidas[salidas.length - 1];
+  proyeccion.push(predecir(regSalidas, ultimoX + 1));
+  proyeccion.push(predecir(regSalidas, ultimoX + 2));
+  const salidasCompletas = [...salidas, null, null];
+  const devolucionesCompletas = [...devoluciones, null, null];
+
+  if (chartTendenciaInstance) chartTendenciaInstance.destroy();
+  chartTendenciaInstance = new Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Salidas", data: salidasCompletas, borderColor: THEME.salida, backgroundColor: THEME.salida, tension: 0.25, pointRadius: 3, spanGaps: false },
+        { label: "Devoluciones", data: devolucionesCompletas, borderColor: THEME.devolucion, backgroundColor: THEME.devolucion, tension: 0.25, pointRadius: 3, spanGaps: false },
+        { label: "Proyección salidas", data: proyeccion, borderColor: THEME.salida, backgroundColor: "transparent", borderDash: [6, 4], pointRadius: 3, pointStyle: "rectRot", tension: 0, spanGaps: true },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "top", labels: { color: THEME.text } },
+        datalabels: {
+          display: mostrarEtiquetas,
+          color: THEME.text, font: { size: 9.5, weight: "bold" }, align: "top", anchor: "end",
+          formatter: (v) => (v === null || v === undefined ? "" : Math.round(v))
+        }
+      },
+      scales: {
+        x: { ticks: { color: THEME.muted, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: THEME.muted }, grid: { color: THEME.grid }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+let chartTendenciaPorEquipoInstance = null;
+let productosVisiblesTendencia = new Set(PRODUCTOS); // todos visibles por defecto
+
+function renderCheckboxesEquiposTendencia() {
+  const cont = document.getElementById("checkboxesEquiposTendencia");
+  if (cont.dataset.armado === "1") return; // ya se armó una vez, no hace falta repetir
+  cont.dataset.armado = "1";
+  cont.innerHTML = PRODUCTOS.map((p, idx) => `
+    <label class="equipo-chip activo" data-producto="${p}">
+      <input type="checkbox" checked value="${p}">
+      <span class="dot" style="background:${SLOTS[idx % SLOTS.length]};"></span>
+      ${p}
+    </label>
+  `).join("");
+}
+
+function renderTendenciaPorEquipo() {
+  const lista = bloquesDeBodegaActual();
+  const canvas = document.getElementById("chartTendenciaPorEquipo");
+
+  if (lista.length === 0) {
+    if (chartTendenciaPorEquipoInstance) { chartTendenciaPorEquipoInstance.destroy(); chartTendenciaPorEquipoInstance = null; }
+    return;
+  }
+
+  const labels = lista.map(b => fmtFechaCorta(b.fecha_inicio));
+  const datasets = PRODUCTOS
+    .filter(p => productosVisiblesTendencia.has(p))
+    .map((p) => {
+      const idx = PRODUCTOS.indexOf(p);
+      return {
+        label: p,
+        data: lista.map(b => (b.porProducto[p] ? b.porProducto[p].Salida : 0)),
+        borderColor: SLOTS[idx % SLOTS.length],
+        backgroundColor: SLOTS[idx % SLOTS.length],
+        tension: 0.25,
+        pointRadius: 2,
+      };
+    });
+
+  if (chartTendenciaPorEquipoInstance) chartTendenciaPorEquipoInstance.destroy();
+  chartTendenciaPorEquipoInstance = new Chart(canvas, {
+    type: "line",
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "top", labels: { color: THEME.text, boxWidth: 12, font: { size: 10.5 } } },
+        datalabels: {
+          display: mostrarEtiquetas,
+          color: (ctx) => ctx.dataset.borderColor, font: { size: 9, weight: "bold" }, align: "top", anchor: "end",
+          formatter: (v) => (v > 0 ? v : "")
+        }
+      },
+      scales: {
+        x: { ticks: { color: THEME.muted, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: THEME.muted }, grid: { color: THEME.grid }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+// ---------- Render: pronóstico de necesidad (gráfico de barras + resumen) ----------
+function renderPronostico() {
+  const canvas = document.getElementById("chartPronostico");
+  const cont = document.getElementById("pronosticoResumen");
+  const lista = bloquesDeBodegaActual();
+
+  if (lista.length === 0) {
+    if (chartPronosticoInstance) { chartPronosticoInstance.destroy(); chartPronosticoInstance = null; }
+    cont.innerHTML = `<div class="empty-msg">No hay suficiente historial sincronizado todavía para proyectar.</div>`;
+    return;
+  }
+
+  const pronosticos = calcularPronosticos();
+  const pct = obtenerPorcentajeSeguridad();
+
+  if (chartPronosticoInstance) chartPronosticoInstance.destroy();
+  chartPronosticoInstance = new Chart(canvas, {
+    type: "bar",
+    data: {
+      labels: pronosticos.map(p => p.producto),
+      datasets: [
+        { label: "Última semana real", data: pronosticos.map(p => Math.round(p.ultimo)), backgroundColor: THEME.muted, borderRadius: 5, maxBarThickness: 18 },
+        { label: "Proyección +1 semana", data: pronosticos.map(p => Math.round(p.pronostico1)), backgroundColor: THEME.accent, borderRadius: 5, maxBarThickness: 18 },
+        { label: "Proyección +2 semanas", data: pronosticos.map(p => Math.round(p.pronostico2)), backgroundColor: THEME.bad, borderRadius: 5, maxBarThickness: 18 },
+        { label: `Recomendado +2 sem. (+${pct}% seguridad)`, data: pronosticos.map(p => Math.round(p.pronostico2Seguridad)), backgroundColor: THEME.good, borderRadius: 5, maxBarThickness: 18 },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: "top", labels: { color: THEME.text, font: { size: 10.5 } } },
+        datalabels: {
+          display: mostrarEtiquetas,
+          color: THEME.text, font: { size: 9.5, weight: "bold" }, anchor: "end", align: "end",
+          formatter: (v) => (v > 0 ? v : "")
+        }
+      },
+      scales: {
+        x: { ticks: { color: THEME.muted, font: { size: 10 } }, grid: { display: false } },
+        y: { ticks: { color: THEME.muted }, grid: { color: THEME.grid }, beginAtZero: true }
+      }
+    }
+  });
+
+  // Resumen textual: destaca los equipos con tendencia creciente (van a necesitar más stock)
+  const ordenados = pronosticos.slice().sort((a, b) => b.slope - a.slope);
+  cont.innerHTML = ordenados.map(p => {
+    const arrow = p.slope > 0.5 ? "↗ Subiendo" : p.slope < -0.5 ? "↘ Bajando" : "→ Estable";
+    const color = p.slope > 0.5 ? THEME.bad : p.slope < -0.5 ? THEME.good : THEME.muted;
+    const nota = `pronóstico +2 sem: ~${Math.round(p.pronostico2)} · recomendado con ${pct}% de seguridad: <b style="color:${THEME.good}">~${Math.round(p.pronostico2Seguridad)}</b>`;
+    return `
+      <div class="pronostico-row">
+        <div class="nombre">${escapeHtml(p.producto)}</div>
+        <div class="detalle">${nota}</div>
+        <div class="tendencia" style="color:${color}">${arrow}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ---------- Render maestro ----------
+function renderAll() {
+  renderBodegaSelector();
+
+  if (cargando) {
+    document.getElementById("bloqueRango").textContent = "Cargando…";
+    document.getElementById("bloqueSub").textContent = "";
+    document.getElementById("tablaBloque").innerHTML = `<div class="empty-msg">Cargando datos desde Supabase…</div>`;
+    return;
+  }
+  if (errorCarga) {
+    document.getElementById("bloqueRango").textContent = "Error de conexión";
+    document.getElementById("bloqueSub").textContent = "";
+    document.getElementById("tablaBloque").innerHTML = `<div class="empty-msg" style="color:${THEME.bad}">No se pudo conectar con Supabase: ${escapeHtml(errorCarga)}<br>Revisa la URL, la anon key y que la tabla "${TABLA_KARDEX}" exista.</div>`;
+    return;
+  }
+
+  renderNavegacionBloque();
+  renderTablaYChartBloque();
+  renderSelectorProductoTendencia();
+  renderTendencia();
+  renderCheckboxesEquiposTendencia();
+  renderTendenciaPorEquipo();
+  renderPronostico();
+}
+
+document.getElementById("checkboxesEquiposTendencia").addEventListener("change", (e) => {
+  const chip = e.target.closest(".equipo-chip");
+  if (!chip) return;
+  const producto = chip.dataset.producto;
+  if (e.target.checked) {
+    productosVisiblesTendencia.add(producto);
+    chip.classList.add("activo");
+  } else {
+    productosVisiblesTendencia.delete(producto);
+    chip.classList.remove("activo");
+  }
+  renderTendenciaPorEquipo();
+});
+
+document.getElementById("toggleEtiquetasDatos").addEventListener("change", (e) => {
+  mostrarEtiquetas = e.target.checked;
+  renderTablaYChartBloque();
+  renderTendencia();
+  renderTendenciaPorEquipo();
+  renderPronostico();
+});
+
+document.getElementById("inputSeguridad").addEventListener("input", () => {
+  renderPronostico();
+});
+
+// ---------- Inicio ----------
+renderAll();
+cargarKardex();
+</script>
+</body>
+</html>
