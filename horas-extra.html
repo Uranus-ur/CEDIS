@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root {
     --bg: #12161D;
@@ -52,6 +53,15 @@
   }
   .card-title { font-size: 13px; font-weight: 700; letter-spacing: 0.02em; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
   .hint { font-size: 12px; color: var(--muted); margin: 0 0 16px; line-height: 1.5; }
+
+  .bodega-selector { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .bodega-pill {
+    font-size: 13px; font-weight: 700; padding: 9px 16px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--panel-alt); color: var(--muted);
+    cursor: pointer; font-family: inherit; transition: all .15s;
+  }
+  .bodega-pill:hover { border-color: var(--accent); color: var(--accent); }
+  .bodega-pill.active { background: var(--accent); border-color: var(--accent); color: #1A0F08; }
 
   .mes-nav { display: flex; align-items: center; justify-content: center; gap: 16px; }
   .mes-nav button {
@@ -235,11 +245,13 @@
   <div class="header-row">
     <div>
       <div class="eyebrow">⛭ Talento humano · CEDIS</div>
-      <h1>Control de Horas Extra</h1>
+      <h1>Control de Horas Extra <span id="sedeTitulo" style="color:var(--accent);">OGUA</span></h1>
       <p class="subtitle">Horarios de auxiliares y supervisores. Operación de lunes a sábado (domingos y festivos libres). Registra las horas extra de cada día y lleva el acumulado mes a mes.</p>
     </div>
     <a class="nav-btn" href="index.html">← Volver al inicio</a>
   </div>
+
+  <div class="bodega-selector" id="sedeSelector"></div>
 
   <div class="card">
     <div class="mes-nav">
@@ -313,9 +325,15 @@
     </div>
     <div id="horarioGridWrap"></div>
 
-    <div class="card-title" style="margin-top:24px;">📆 Horario semanal (Lunes a Sábado)</div>
-    <p class="hint">Vista resumida de toda la semana, para ver de un vistazo el horario de cada persona los 6 días.</p>
-    <div id="horarioSemanalWrap"></div>
+    <div class="card-title" style="margin-top:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+      <span>📆 Horario semanal (Lunes a Sábado)</span>
+      <button type="button" id="btnDescargarImagenHorario" class="btn-primary" style="font-size:12px; padding:7px 14px;">📷 Descargar imagen (alta resolución)</button>
+    </div>
+    <p class="hint">Vista resumida de toda la semana, para ver de un vistazo el horario de cada persona los 6 días. Descárgala como imagen para compartirla sin dar acceso a esta herramienta (evita el riesgo de que alguien modifique los datos).</p>
+    <div id="capturaHorarioSemanal" style="background:var(--bg); padding:18px; border-radius:12px;">
+      <div id="capturaHorarioTitulo" style="font-weight:700; font-size:15px; margin-bottom:12px; color:var(--text);"></div>
+      <div id="horarioSemanalWrap"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -401,6 +419,9 @@ function colorDePersona(personaId) {
 
 const hoy = new Date();
 let mesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+
+const SEDES = ["OGUA", "BELLO", "ALCAZARES", "MONTE VIDEO", "ORIO"];
+let sedeActual = SEDES[0];
 
 let personas = [];
 let festivos = [];
@@ -591,7 +612,7 @@ async function agregarPersonal() {
   msgEl.textContent = "Guardando…";
   const { data, error } = await sb
     .from(TABLA_PERSONAL)
-    .insert({ nombre, cargo: selectCargo.value, turno: selectTurno.value, color: inputColor.value, activo: true })
+    .insert({ nombre, cargo: selectCargo.value, turno: selectTurno.value, color: inputColor.value, sede: sedeActual, activo: true })
     .select();
 
   if (error) {
@@ -615,6 +636,18 @@ async function actualizarTurnoPersona(id, turno) {
     alert("No se pudo guardar el turno: " + error.message);
     renderPersonalList();
     renderResumen();
+  }
+}
+
+async function actualizarSedePersona(id, sede) {
+  const anterior = personas;
+  personas = personas.map(p => (p.id === id ? { ...p, sede } : p));
+  renderAll();
+  const { error } = await sb.from(TABLA_PERSONAL).update({ sede }).eq("id", id);
+  if (error) {
+    personas = anterior;
+    alert("No se pudo trasladar de sede: " + error.message);
+    renderAll();
   }
 }
 
@@ -770,6 +803,35 @@ async function actualizarHorario(personaId, diaSemana, campo, valor) {
   if (data && data[0]) horariosMap[clave] = data[0];
 }
 
+async function descargarImagenHorarioSemanal() {
+  const btn = document.getElementById("btnDescargarImagenHorario");
+  const elemento = document.getElementById("capturaHorarioSemanal");
+  const textoOriginal = btn.textContent;
+  btn.textContent = "Generando imagen…";
+  btn.disabled = true;
+
+  try {
+    const canvas = await html2canvas(elemento, {
+      scale: 3, // alta resolución
+      backgroundColor: "#12161D",
+      useCORS: true,
+    });
+    const enlace = document.createElement("a");
+    const lunes = getLunesSemanaActual();
+    const nombreArchivo = `horario-${sedeActual.replace(/\s+/g, "_")}-${fechaISO(lunes)}.png`;
+    enlace.download = nombreArchivo;
+    enlace.href = canvas.toDataURL("image/png");
+    enlace.click();
+  } catch (err) {
+    alert("No se pudo generar la imagen: " + err.message);
+  } finally {
+    btn.textContent = textoOriginal;
+    btn.disabled = false;
+  }
+}
+
+document.getElementById("btnDescargarImagenHorario").addEventListener("click", descargarImagenHorarioSemanal);
+
 document.getElementById("btnMesAnterior").addEventListener("click", async () => {
   mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() - 1, 1);
   await cargarHorasDelMes();
@@ -796,7 +858,7 @@ function renderStats() {
   const anio = mesActual.getFullYear(), mes = mesActual.getMonth();
   const habiles = diasHabilesDelMes(anio, mes);
   const diasDom = diasDominicalesYFestivosDelMes(anio, mes);
-  const activos = personas.filter(p => p.activo);
+  const activos = personalActivoDeLaSede();
 
   let totalHoras = 0;
   let horasPendientesPago = 0;
@@ -819,13 +881,40 @@ function renderStats() {
   `;
 }
 
+function renderSedeSelector() {
+  const cont = document.getElementById("sedeSelector");
+  cont.innerHTML = SEDES.map(s =>
+    `<button type="button" class="bodega-pill ${s === sedeActual ? "active" : ""}" data-sede="${s}">${s}</button>`
+  ).join("");
+  cont.querySelectorAll(".bodega-pill").forEach(btn => {
+    btn.addEventListener("click", () => cambiarSede(btn.dataset.sede));
+  });
+  document.getElementById("sedeTitulo").textContent = sedeActual;
+}
+
+function cambiarSede(nueva) {
+  if (nueva === sedeActual) return;
+  sedeActual = nueva;
+  renderAll();
+}
+
+// Personal de la sede actual (todo, activo e inactivo, para la lista de gestión)
+function personalDeLaSede() {
+  return personas.filter(p => (p.sede || "OGUA") === sedeActual);
+}
+// Solo el personal activo de la sede actual (para grids de digitación)
+function personalActivoDeLaSede() {
+  return personalDeLaSede().filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
+
 function renderPersonalList() {
   const cont = document.getElementById("personalList");
-  if (personas.length === 0) {
-    cont.innerHTML = `<div class="empty-msg">Aún no has agregado a nadie. Usa el formulario de arriba.</div>`;
+  const deLaSede = personalDeLaSede();
+  if (deLaSede.length === 0) {
+    cont.innerHTML = `<div class="empty-msg">Aún no has agregado a nadie en ${escapeHtml(sedeActual)}. Usa el formulario de arriba.</div>`;
     return;
   }
-  const ordenados = personas.slice().sort((a, b) => {
+  const ordenados = deLaSede.slice().sort((a, b) => {
     if (a.activo !== b.activo) return a.activo ? -1 : 1;
     return a.nombre.localeCompare(b.nombre);
   });
@@ -837,6 +926,9 @@ function renderPersonalList() {
         <option value="Turno 1" ${(!p.turno || p.turno === "Turno 1") ? "selected" : ""}>Turno 1</option>
         <option value="Turno 2" ${p.turno === "Turno 2" ? "selected" : ""}>Turno 2</option>
         <option value="" ${p.turno === "" ? "selected" : ""}>Sin turno</option>
+      </select>
+      <select class="select-sede-persona" data-id="${p.id}" title="Trasladar a otra sede" style="background:var(--panel-alt); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 8px; font-size:11px; font-family:inherit;">
+        ${SEDES.map(s => `<option value="${s}" ${(p.sede || "OGUA") === s ? "selected" : ""}>${s}</option>`).join("")}
       </select>
       <span class="nombre">${escapeHtml(p.nombre)}</span>
       ${p.activo
@@ -852,7 +944,7 @@ function selectHoraOptions(valorActual) {
 
 function renderSelectorPersonaHorario() {
   const sel = document.getElementById("selectorPersonaHorario");
-  const activos = personas.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = personalActivoDeLaSede();
 
   if (activos.length === 0) {
     sel.innerHTML = `<option value="">Sin personal activo</option>`;
@@ -902,7 +994,7 @@ function renderHorarioForm() {
 function renderHorarioGrid() {
   const cont = document.getElementById("horarioGridWrap");
   document.getElementById("selectorDiaHorario").value = String(diaHorarioSeleccionado);
-  const activos = personas.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = personalActivoDeLaSede();
 
   if (activos.length === 0) {
     cont.innerHTML = "";
@@ -959,14 +1051,21 @@ function renderHorarioGrid() {
 
 function renderHorarioSemanal() {
   const cont = document.getElementById("horarioSemanalWrap");
-  const activos = personas.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = personalActivoDeLaSede();
+
+  const lunes = getLunesSemanaActual();
+  const sabado = new Date(lunes);
+  sabado.setDate(lunes.getDate() + 5);
+  const tituloEl = document.getElementById("capturaHorarioTitulo");
+  if (tituloEl) {
+    tituloEl.textContent = `Sede ${sedeActual} · Semana del ${lunes.getDate()} al ${sabado.getDate()} de ${MESES[sabado.getMonth()]} ${sabado.getFullYear()}`;
+  }
 
   if (activos.length === 0) {
     cont.innerHTML = `<div class="empty-msg">Agrega personal activo para ver el horario semanal.</div>`;
     return;
   }
 
-  const lunes = getLunesSemanaActual();
   const encabezados = DIAS_SEMANA_HORARIO.slice(1).map((d, idx) => {
     const fecha = new Date(lunes);
     fecha.setDate(lunes.getDate() + idx);
@@ -1037,7 +1136,7 @@ function renderTablaHoras() {
   const cont = document.getElementById("tablaHorasWrap");
   const anio = mesActual.getFullYear(), mes = mesActual.getMonth();
   const habiles = diasHabilesDelMes(anio, mes);
-  const activos = personas.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = personalActivoDeLaSede();
 
   if (activos.length === 0) {
     cont.innerHTML = `<div class="empty-msg">Agrega personal activo para empezar a registrar horas extra.</div>`;
@@ -1097,7 +1196,7 @@ function renderTablaDominicales() {
   const cont = document.getElementById("tablaDominicalesWrap");
   const anio = mesActual.getFullYear(), mes = mesActual.getMonth();
   const diasDom = diasDominicalesYFestivosDelMes(anio, mes);
-  const activos = personas.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = personalActivoDeLaSede();
 
   if (activos.length === 0) {
     cont.innerHTML = `<div class="empty-msg">Agrega personal activo para registrar horas dominicales/festivas.</div>`;
@@ -1163,7 +1262,7 @@ function renderResumen() {
   const diasDom = diasDominicalesYFestivosDelMes(anio, mes);
   const limite = limiteParaPendientes(anio, mes);
   const habilesHastaLimite = habiles.filter(d => d.getDate() <= limite);
-  const activos = personas.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const activos = personalActivoDeLaSede();
 
   if (activos.length === 0) {
     cont.innerHTML = `<div class="empty-msg">Sin personal activo para mostrar resumen.</div>`;
@@ -1225,6 +1324,7 @@ function renderStatsYResumen() {
 
 function renderAll() {
   renderMesLabel();
+  renderSedeSelector();
 
   if (cargando) {
     document.getElementById("statsBar").innerHTML = `<div class="empty-msg">Cargando datos desde Supabase…</div>`;
@@ -1266,6 +1366,8 @@ document.getElementById("personalList").addEventListener("change", (e) => {
   if (inputColor) { actualizarColorPersona(inputColor.dataset.id, inputColor.value); return; }
   const selectTurno = e.target.closest(".select-turno-persona");
   if (selectTurno) { actualizarTurnoPersona(selectTurno.dataset.id, selectTurno.value); return; }
+  const selectSede = e.target.closest(".select-sede-persona");
+  if (selectSede) { actualizarSedePersona(selectSede.dataset.id, selectSede.value); return; }
 });
 
 document.getElementById("btnAgregarFestivo").addEventListener("click", agregarFestivo);
