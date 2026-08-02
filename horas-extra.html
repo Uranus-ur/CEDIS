@@ -169,6 +169,13 @@
   .mini-campo .mini-label { font-size: 8.5px; color: var(--faint); width: 10px; text-align: right; }
   .leyenda-dn { font-size: 11px; color: var(--muted); margin-top: 8px; }
   .celda-no-aplica { text-align: center; color: var(--faint); font-style: italic; background: rgba(255,255,255,0.02); }
+  .contador-42 {
+    margin-top: 14px; padding: 12px 16px; border: 2px solid var(--border); border-radius: 10px;
+    background: var(--panel-alt); display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .contador-42-num { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 20px; font-weight: 700; }
+  .contador-42-num span { font-size: 13px; font-weight: 600; opacity: 0.7; }
+  .contador-42-msg { font-size: 12.5px; font-weight: 600; }
   table.grid-horas tbody tr:hover td { background: rgba(255,122,61,0.04); }
   table.grid-horas tbody tr:hover td.col-nombre { background: var(--panel-alt); }
 
@@ -299,13 +306,6 @@
       <div class="form-field">
         <label for="nuevoPersonalColor">Color</label>
         <input type="color" id="nuevoPersonalColor" value="#3DB8FF" style="width:44px; height:36px; padding:2px; cursor:pointer;">
-      </div>
-      <div class="form-field">
-        <label style="visibility:hidden;">.</label>
-        <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); cursor:pointer; white-space:nowrap;">
-          <input type="checkbox" id="nuevoPersonalDescansaSabado" style="width:auto;">
-          También descansa el sábado
-        </label>
       </div>
       <button class="btn-primary" id="btnAgregarPersonal" type="button">+ Agregar</button>
     </div>
@@ -563,9 +563,14 @@ function diasHabilesDelMes(anio, mes) {
 }
 // Igual que diasHabilesDelMes, pero si la persona también descansa los sábados,
 // esos días se excluyen (le queda una semana de lunes a viernes, 5 días).
+// Regla de la operación: el Turno 1 no trabaja los sábados (semana de lunes
+// a viernes); el Turno 2 sí trabaja sábado (lunes a sábado completo).
+function personaTrabajaSabado(persona) {
+  return persona && persona.turno === "Turno 2";
+}
 function diasHabilesDelMesPersona(anio, mes, persona) {
   const base = diasHabilesDelMes(anio, mes);
-  if (persona && persona.descansa_sabado) {
+  if (!personaTrabajaSabado(persona)) {
     return base.filter(d => d.getDay() !== 6);
   }
   return base;
@@ -642,7 +647,6 @@ async function agregarPersonal() {
   const selectCargo = document.getElementById("nuevoPersonalCargo");
   const selectTurno = document.getElementById("nuevoPersonalTurno");
   const inputColor = document.getElementById("nuevoPersonalColor");
-  const inputDescansaSabado = document.getElementById("nuevoPersonalDescansaSabado");
   const msgEl = document.getElementById("personalMsg");
   const nombre = inputNombre.value.trim();
   if (!nombre) {
@@ -652,7 +656,7 @@ async function agregarPersonal() {
   msgEl.textContent = "Guardando…";
   const { data, error } = await sb
     .from(TABLA_PERSONAL)
-    .insert({ nombre, cargo: selectCargo.value, turno: selectTurno.value, color: inputColor.value, sede: sedeActual, descansa_sabado: inputDescansaSabado.checked, activo: true })
+    .insert({ nombre, cargo: selectCargo.value, turno: selectTurno.value, color: inputColor.value, sede: sedeActual, activo: true })
     .select();
 
   if (error) {
@@ -661,7 +665,6 @@ async function agregarPersonal() {
   }
   if (data && data[0]) personas = [...personas, data[0]];
   inputNombre.value = "";
-  inputDescansaSabado.checked = false;
   msgEl.innerHTML = `<span style="color:var(--good)">Persona agregada.</span>`;
   setTimeout(() => { msgEl.innerHTML = ""; }, 2500);
   renderAll();
@@ -688,18 +691,6 @@ async function actualizarSedePersona(id, sede) {
   if (error) {
     personas = anterior;
     alert("No se pudo trasladar de sede: " + error.message);
-    renderAll();
-  }
-}
-
-async function actualizarDescansaSabado(id, descansaSabado) {
-  const anterior = personas;
-  personas = personas.map(p => (p.id === id ? { ...p, descansa_sabado: descansaSabado } : p));
-  renderAll();
-  const { error } = await sb.from(TABLA_PERSONAL).update({ descansa_sabado: descansaSabado }).eq("id", id);
-  if (error) {
-    personas = anterior;
-    alert("No se pudo actualizar: " + error.message);
     renderAll();
   }
 }
@@ -843,6 +834,7 @@ async function actualizarHorario(personaId, diaSemana, campo, valor) {
   };
   const actualizado = { ...base, [campo]: valor };
   horariosMap[clave] = actualizado;
+  renderHorarioForm();
   renderHorarioGrid();
   renderHorarioSemanal();
 
@@ -990,10 +982,9 @@ function personaItemHtml(p) {
       <select class="select-sede-persona" data-id="${p.id}" title="Trasladar a otra sede" style="background:var(--panel-alt); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:4px 8px; font-size:11px; font-family:inherit;">
         ${SEDES.map(s => `<option value="${s}" ${(p.sede || "OGUA") === s ? "selected" : ""}>${s}</option>`).join("")}
       </select>
-      <label class="chip-sabado" title="Si está marcado, esta persona no trabaja los sábados (semana de lunes a viernes)">
-        <input type="checkbox" class="check-descansa-sabado" data-id="${p.id}" ${p.descansa_sabado ? "checked" : ""}>
-        Descansa sábado
-      </label>
+      <span class="chip-sabado" title="Se calcula automáticamente según el turno">
+        ${personaTrabajaSabado(p) ? "🗓 Trabaja sábado" : "🚫 Sin sábado"}
+      </span>
       <span class="nombre">${escapeHtml(p.nombre)}</span>
       ${p.activo
         ? `<button type="button" data-id="${p.id}" class="btn-retirar">Retirar</button>`
@@ -1043,14 +1034,47 @@ function renderSelectorPersonaHorario() {
   sel.innerHTML = activos.map(p => `<option value="${p.id}" ${p.id === personaHorarioSeleccionada ? "selected" : ""}>${escapeHtml(p.nombre)}</option>`).join("");
 }
 
+function horasDelDia(h) {
+  if (!h || !h.hora_entrada || !h.hora_salida) return 0;
+  const entrada = Number(h.hora_entrada.slice(0, 2));
+  const salida = Number(h.hora_salida.slice(0, 2));
+  let horas = salida - entrada;
+  if (h.hora_almuerzo_inicio && h.hora_almuerzo_fin) {
+    const almInicio = Number(h.hora_almuerzo_inicio.slice(0, 2));
+    const almFin = Number(h.hora_almuerzo_fin.slice(0, 2));
+    horas -= Math.max(0, almFin - almInicio);
+  }
+  return Math.max(0, horas);
+}
+
+function calcularHorasSemanalesProgramadas(personaId, persona) {
+  const dias = personaTrabajaSabado(persona) ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+  let total = 0;
+  dias.forEach(dia => {
+    const h = horariosMap[`${personaId}_${dia}`] || { hora_entrada: "07:00", hora_salida: "16:00", hora_almuerzo_inicio: "12:00", hora_almuerzo_fin: "13:00" };
+    total += horasDelDia(h);
+  });
+  return total;
+}
+
 function renderHorarioForm() {
   const cont = document.getElementById("horarioFormWrap");
   if (!personaHorarioSeleccionada) {
     cont.innerHTML = `<div class="empty-msg">Agrega personal activo para definir horarios.</div>`;
     return;
   }
+  const persona = personas.find(p => p.id === personaHorarioSeleccionada);
+  const trabajaSabado = personaTrabajaSabado(persona);
 
-  cont.innerHTML = [1, 2, 3, 4, 5, 6].map(dia => {
+  const filas = [1, 2, 3, 4, 5, 6].map(dia => {
+    if (dia === 6 && !trabajaSabado) {
+      return `
+        <div class="horario-row" style="opacity:0.5;">
+          <div class="nombre-col">${DIAS_SEMANA_HORARIO[dia]}</div>
+          <div style="font-size:12px; color:var(--muted); font-style:italic;">No aplica — Turno 1 no trabaja los sábados</div>
+        </div>
+      `;
+    }
     const clave = `${personaHorarioSeleccionada}_${dia}`;
     const h = horariosMap[clave] || { hora_entrada: "07:00", hora_salida: "16:00", hora_almuerzo_inicio: "12:00", hora_almuerzo_fin: "13:00" };
     return `
@@ -1075,6 +1099,23 @@ function renderHorarioForm() {
       </div>
     `;
   }).join("");
+
+  const totalSemanal = calcularHorasSemanalesProgramadas(personaHorarioSeleccionada, persona);
+  const diferencia = totalSemanal - 42;
+  const color = diferencia === 0 ? "var(--good)" : (diferencia > 0 ? "var(--bad)" : "#F0C93D");
+  const mensaje = diferencia === 0
+    ? "✅ Exacto: cumple las 42 horas legales."
+    : diferencia > 0
+      ? `⚠️ Te pasaste por ${diferencia} hora${diferencia === 1 ? "" : "s"} de las 42 legales.`
+      : `⚠️ Te faltan ${Math.abs(diferencia)} hora${Math.abs(diferencia) === 1 ? "" : "s"} para llegar a las 42.`;
+
+  cont.innerHTML = `
+    ${filas}
+    <div class="contador-42" style="border-color:${color};">
+      <div class="contador-42-num" style="color:${color};">${totalSemanal.toFixed(1)} <span>/ 42 h</span></div>
+      <div class="contador-42-msg" style="color:${color};">${mensaje}</div>
+    </div>
+  `;
 }
 
 function renderHorarioGrid() {
@@ -1242,8 +1283,8 @@ function renderTablaHoras() {
   const filas = activos.map(p => {
     const celdas = habiles.map(d => {
       const iso = fechaISO(d);
-      if (d.getDay() === 6 && p.descansa_sabado) {
-        return `<td class="celda-doble celda-no-aplica" title="Esta persona descansa los sábados">—</td>`;
+      if (d.getDay() === 6 && !personaTrabajaSabado(p)) {
+        return `<td class="celda-doble celda-no-aplica" title="El Turno 1 no trabaja los sábados">—</td>`;
       }
       const v = horasMap[`${p.id}_${iso}`] || { diurnas: 0, nocturnas: 0, dominicales: 0 };
       return `
@@ -1463,8 +1504,6 @@ function manejarChangePersonal(e) {
   if (selectTurno) { actualizarTurnoPersona(selectTurno.dataset.id, selectTurno.value); return; }
   const selectSede = e.target.closest(".select-sede-persona");
   if (selectSede) { actualizarSedePersona(selectSede.dataset.id, selectSede.value); return; }
-  const checkSabado = e.target.closest(".check-descansa-sabado");
-  if (checkSabado) { actualizarDescansaSabado(checkSabado.dataset.id, checkSabado.checked); return; }
 }
 document.getElementById("personalList").addEventListener("click", manejarClickPersonal);
 document.getElementById("personalList").addEventListener("change", manejarChangePersonal);
