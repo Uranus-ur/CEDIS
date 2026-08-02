@@ -1176,13 +1176,13 @@ function renderHorarioGrid() {
   `;
 }
 
-function construirTablaHorarioSemanal(personasDelTurno, lunes, encabezados) {
+function construirTablaHorarioSemanal(personasDelTurno, lunes, encabezados, diasAMostrar) {
   if (personasDelTurno.length === 0) {
     return `<div class="empty-msg">No hay personal activo en este turno.</div>`;
   }
   const filas = personasDelTurno.map(p => {
     const color = colorDePersona(p.id);
-    const celdas = [1, 2, 3, 4, 5, 6].map(dia => {
+    const celdas = diasAMostrar.map(dia => {
       const h = horariosMap[`${p.id}_${dia}`] || { hora_entrada: "07:00", hora_salida: "16:00", hora_almuerzo_inicio: "12:00", hora_almuerzo_fin: "13:00" };
       return `
         <td>
@@ -1220,19 +1220,24 @@ function renderHorarioSemanal() {
   sabado.setDate(lunes.getDate() + 5);
   const rangoTexto = `Sede ${sedeActual} · Semana del ${lunes.getDate()} al ${sabado.getDate()} de ${MESES[sabado.getMonth()]} ${sabado.getFullYear()}`;
 
-  const encabezados = DIAS_SEMANA_HORARIO.slice(1).map((d, idx) => {
-    const fecha = new Date(lunes);
-    fecha.setDate(lunes.getDate() + idx);
-    return `<th>${d} ${fecha.getDate()}</th>`;
-  }).join("");
+  function encabezadosPara(dias) {
+    return dias.map(dia => {
+      const fecha = new Date(lunes);
+      fecha.setDate(lunes.getDate() + (dia - 1));
+      return `<th>${DIAS_SEMANA_HORARIO[dia]} ${fecha.getDate()}</th>`;
+    }).join("");
+  }
+
+  const diasTurno1 = [1, 2, 3, 4, 5];       // Turno 1: lunes a viernes (no trabaja sábado)
+  const diasTurno2 = [1, 2, 3, 4, 5, 6];    // Turno 2: lunes a sábado
 
   const turno1 = activos.filter(p => p.turno === "Turno 1" || p.turno === undefined || p.turno === null);
   const turno2 = activos.filter(p => p.turno === "Turno 2");
 
-  document.getElementById("capturaHorarioTitulo1").textContent = `${rangoTexto} · Turno 1`;
-  document.getElementById("capturaHorarioTitulo2").textContent = `${rangoTexto} · Turno 2`;
-  document.getElementById("horarioSemanalWrapTurno1").innerHTML = construirTablaHorarioSemanal(turno1, lunes, encabezados);
-  document.getElementById("horarioSemanalWrapTurno2").innerHTML = construirTablaHorarioSemanal(turno2, lunes, encabezados);
+  document.getElementById("capturaHorarioTitulo1").textContent = `${rangoTexto} · Turno 1 (Lun-Vie)`;
+  document.getElementById("capturaHorarioTitulo2").textContent = `${rangoTexto} · Turno 2 (Lun-Sáb)`;
+  document.getElementById("horarioSemanalWrapTurno1").innerHTML = construirTablaHorarioSemanal(turno1, lunes, encabezadosPara(diasTurno1), diasTurno1);
+  document.getElementById("horarioSemanalWrapTurno2").innerHTML = construirTablaHorarioSemanal(turno2, lunes, encabezadosPara(diasTurno2), diasTurno2);
 }
 
 function renderFestivos() {
