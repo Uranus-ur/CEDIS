@@ -325,14 +325,25 @@
     </div>
     <div id="horarioGridWrap"></div>
 
-    <div class="card-title" style="margin-top:24px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
-      <span>📆 Horario semanal (Lunes a Sábado)</span>
-      <button type="button" id="btnDescargarImagenHorario" class="btn-primary" style="font-size:12px; padding:7px 14px;">📷 Descargar imagen (alta resolución)</button>
+    <div class="card-title" style="margin-top:24px;">📆 Horario semanal (Lunes a Sábado)</div>
+    <p class="hint">Vista resumida de toda la semana, separada por turno para que cada equipo reciba solo su propio horario. Descarga cada una como imagen para compartirla sin dar acceso a esta herramienta (evita el riesgo de que alguien modifique los datos).</p>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:18px; margin-bottom:8px;">
+      <div style="font-size:13px; font-weight:700; color:var(--text);">🕐 Turno 1</div>
+      <button type="button" class="btn-primary btn-descargar-turno" data-turno="Turno 1" style="font-size:12px; padding:7px 14px;">📷 Descargar imagen Turno 1</button>
     </div>
-    <p class="hint">Vista resumida de toda la semana, para ver de un vistazo el horario de cada persona los 6 días. Descárgala como imagen para compartirla sin dar acceso a esta herramienta (evita el riesgo de que alguien modifique los datos).</p>
-    <div id="capturaHorarioSemanal" style="background:var(--bg); padding:18px; border-radius:12px;">
-      <div id="capturaHorarioTitulo" style="font-weight:700; font-size:15px; margin-bottom:12px; color:var(--text);"></div>
-      <div id="horarioSemanalWrap"></div>
+    <div id="capturaHorarioTurno1" style="background:var(--bg); padding:18px; border-radius:12px;">
+      <div id="capturaHorarioTitulo1" style="font-weight:700; font-size:15px; margin-bottom:12px; color:var(--text);"></div>
+      <div id="horarioSemanalWrapTurno1"></div>
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-top:22px; margin-bottom:8px;">
+      <div style="font-size:13px; font-weight:700; color:var(--text);">🕑 Turno 2</div>
+      <button type="button" class="btn-primary btn-descargar-turno" data-turno="Turno 2" style="font-size:12px; padding:7px 14px;">📷 Descargar imagen Turno 2</button>
+    </div>
+    <div id="capturaHorarioTurno2" style="background:var(--bg); padding:18px; border-radius:12px;">
+      <div id="capturaHorarioTitulo2" style="font-weight:700; font-size:15px; margin-bottom:12px; color:var(--text);"></div>
+      <div id="horarioSemanalWrapTurno2"></div>
     </div>
   </div>
 
@@ -803,9 +814,9 @@ async function actualizarHorario(personaId, diaSemana, campo, valor) {
   if (data && data[0]) horariosMap[clave] = data[0];
 }
 
-async function descargarImagenHorarioSemanal() {
-  const btn = document.getElementById("btnDescargarImagenHorario");
-  const elemento = document.getElementById("capturaHorarioSemanal");
+async function descargarImagenHorarioSemanal(turno, btn) {
+  const numeroTurno = turno === "Turno 2" ? "2" : "1";
+  const elemento = document.getElementById(`capturaHorarioTurno${numeroTurno}`);
   const textoOriginal = btn.textContent;
   btn.textContent = "Generando imagen…";
   btn.disabled = true;
@@ -818,7 +829,7 @@ async function descargarImagenHorarioSemanal() {
     });
     const enlace = document.createElement("a");
     const lunes = getLunesSemanaActual();
-    const nombreArchivo = `horario-${sedeActual.replace(/\s+/g, "_")}-${fechaISO(lunes)}.png`;
+    const nombreArchivo = `horario-${sedeActual.replace(/\s+/g, "_")}-turno${numeroTurno}-${fechaISO(lunes)}.png`;
     enlace.download = nombreArchivo;
     enlace.href = canvas.toDataURL("image/png");
     enlace.click();
@@ -830,7 +841,9 @@ async function descargarImagenHorarioSemanal() {
   }
 }
 
-document.getElementById("btnDescargarImagenHorario").addEventListener("click", descargarImagenHorarioSemanal);
+document.querySelectorAll(".btn-descargar-turno").forEach(btn => {
+  btn.addEventListener("click", () => descargarImagenHorarioSemanal(btn.dataset.turno, btn));
+});
 
 document.getElementById("btnMesAnterior").addEventListener("click", async () => {
   mesActual = new Date(mesActual.getFullYear(), mesActual.getMonth() - 1, 1);
@@ -1049,30 +1062,11 @@ function renderHorarioGrid() {
   `;
 }
 
-function renderHorarioSemanal() {
-  const cont = document.getElementById("horarioSemanalWrap");
-  const activos = personalActivoDeLaSede();
-
-  const lunes = getLunesSemanaActual();
-  const sabado = new Date(lunes);
-  sabado.setDate(lunes.getDate() + 5);
-  const tituloEl = document.getElementById("capturaHorarioTitulo");
-  if (tituloEl) {
-    tituloEl.textContent = `Sede ${sedeActual} · Semana del ${lunes.getDate()} al ${sabado.getDate()} de ${MESES[sabado.getMonth()]} ${sabado.getFullYear()}`;
+function construirTablaHorarioSemanal(personasDelTurno, lunes, encabezados) {
+  if (personasDelTurno.length === 0) {
+    return `<div class="empty-msg">No hay personal activo en este turno.</div>`;
   }
-
-  if (activos.length === 0) {
-    cont.innerHTML = `<div class="empty-msg">Agrega personal activo para ver el horario semanal.</div>`;
-    return;
-  }
-
-  const encabezados = DIAS_SEMANA_HORARIO.slice(1).map((d, idx) => {
-    const fecha = new Date(lunes);
-    fecha.setDate(lunes.getDate() + idx);
-    return `<th>${d} ${fecha.getDate()}</th>`;
-  }).join("");
-
-  const filas = activos.map(p => {
+  const filas = personasDelTurno.map(p => {
     const color = colorDePersona(p.id);
     const celdas = [1, 2, 3, 4, 5, 6].map(dia => {
       const h = horariosMap[`${p.id}_${dia}`] || { hora_entrada: "07:00", hora_salida: "16:00", hora_almuerzo_inicio: "12:00", hora_almuerzo_fin: "13:00" };
@@ -1094,7 +1088,7 @@ function renderHorarioSemanal() {
     `;
   }).join("");
 
-  cont.innerHTML = `
+  return `
     <div class="tabla-wrap">
       <table class="tabla-semanal">
         <thead><tr><th>Persona</th>${encabezados}</tr></thead>
@@ -1102,6 +1096,29 @@ function renderHorarioSemanal() {
       </table>
     </div>
   `;
+}
+
+function renderHorarioSemanal() {
+  const activos = personalActivoDeLaSede();
+
+  const lunes = getLunesSemanaActual();
+  const sabado = new Date(lunes);
+  sabado.setDate(lunes.getDate() + 5);
+  const rangoTexto = `Sede ${sedeActual} · Semana del ${lunes.getDate()} al ${sabado.getDate()} de ${MESES[sabado.getMonth()]} ${sabado.getFullYear()}`;
+
+  const encabezados = DIAS_SEMANA_HORARIO.slice(1).map((d, idx) => {
+    const fecha = new Date(lunes);
+    fecha.setDate(lunes.getDate() + idx);
+    return `<th>${d} ${fecha.getDate()}</th>`;
+  }).join("");
+
+  const turno1 = activos.filter(p => p.turno === "Turno 1" || p.turno === undefined || p.turno === null);
+  const turno2 = activos.filter(p => p.turno === "Turno 2");
+
+  document.getElementById("capturaHorarioTitulo1").textContent = `${rangoTexto} · Turno 1`;
+  document.getElementById("capturaHorarioTitulo2").textContent = `${rangoTexto} · Turno 2`;
+  document.getElementById("horarioSemanalWrapTurno1").innerHTML = construirTablaHorarioSemanal(turno1, lunes, encabezados);
+  document.getElementById("horarioSemanalWrapTurno2").innerHTML = construirTablaHorarioSemanal(turno2, lunes, encabezados);
 }
 
 function renderFestivos() {
