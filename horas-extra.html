@@ -129,6 +129,8 @@
   }
   .personal-item button:hover { border-color: var(--bad); color: var(--bad); }
   .personal-item button.btn-reactivar:hover { border-color: var(--good); color: var(--good); }
+  .personal-item button.btn-eliminar-persona { color: var(--bad); border-color: rgba(240,85,90,0.4); }
+  .personal-item button.btn-eliminar-persona:hover { background: var(--bad); color: #1A0F08; }
 
   .festivo-chip {
     display: inline-flex; align-items: center; gap: 8px; background: var(--panel-alt); border: 1px solid var(--border);
@@ -295,6 +297,9 @@
     </div>
     <div class="form-msg" id="personalMsg"></div>
     <div class="personal-list" id="personalList"></div>
+
+    <div class="archivo-toggle" id="personalRetiradosToggle" style="margin-top:14px; cursor:pointer; font-size:12.5px; color:var(--muted); user-select:none;">🗄 Personal retirado (0)</div>
+    <div class="personal-list" id="personalRetiradosWrap" style="display:none; margin-top:10px;"></div>
   </div>
 
   <!-- Horario de trabajo -->
@@ -694,6 +699,21 @@ async function reactivarPersona(id) {
   if (error) { personas = anterior; alert("No se pudo reactivar: " + error.message); renderAll(); }
 }
 
+async function eliminarPersonaDefinitivo(id) {
+  const persona = personas.find(p => p.id === id);
+  if (!persona) return;
+  const confirmar = confirm(
+    `¿Eliminar definitivamente a "${persona.nombre}"?\n\nEsto borra también todo su historial de horas extra, horario y pagos. No se puede deshacer.`
+  );
+  if (!confirmar) return;
+
+  const anterior = personas;
+  personas = personas.filter(p => p.id !== id);
+  renderAll();
+  const { error } = await sb.from(TABLA_PERSONAL).delete().eq("id", id);
+  if (error) { personas = anterior; alert("No se pudo eliminar: " + error.message); renderAll(); }
+}
+
 async function agregarFestivo() {
   const inputFecha = document.getElementById("nuevoFestivoFecha");
   const inputDesc = document.getElementById("nuevoFestivoDescripcion");
@@ -920,18 +940,8 @@ function personalActivoDeLaSede() {
   return personalDeLaSede().filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 
-function renderPersonalList() {
-  const cont = document.getElementById("personalList");
-  const deLaSede = personalDeLaSede();
-  if (deLaSede.length === 0) {
-    cont.innerHTML = `<div class="empty-msg">Aún no has agregado a nadie en ${escapeHtml(sedeActual)}. Usa el formulario de arriba.</div>`;
-    return;
-  }
-  const ordenados = deLaSede.slice().sort((a, b) => {
-    if (a.activo !== b.activo) return a.activo ? -1 : 1;
-    return a.nombre.localeCompare(b.nombre);
-  });
-  cont.innerHTML = ordenados.map(p => `
+function personaItemHtml(p) {
+  return `
     <div class="personal-item ${p.activo ? "" : "inactivo"}">
       <input type="color" class="input-color-persona" data-id="${p.id}" value="${colorDePersona(p.id)}" title="Cambiar color de ${escapeHtml(p.nombre)}" style="width:26px; height:26px; padding:0; border:none; border-radius:6px; cursor:pointer; flex-shrink:0;">
       <span class="cargo-badge ${p.cargo.toLowerCase()}"><span class="dot"></span>${p.cargo}</span>
@@ -946,9 +956,31 @@ function renderPersonalList() {
       <span class="nombre">${escapeHtml(p.nombre)}</span>
       ${p.activo
         ? `<button type="button" data-id="${p.id}" class="btn-retirar">Retirar</button>`
-        : `<button type="button" data-id="${p.id}" class="btn-reactivar">Reactivar</button>`}
+        : `<button type="button" data-id="${p.id}" class="btn-reactivar">Reactivar</button>
+           <button type="button" data-id="${p.id}" class="btn-eliminar-persona" title="Eliminar definitivamente (borra también su historial de horas)">🗑 Eliminar</button>`}
     </div>
-  `).join("");
+  `;
+}
+
+function renderPersonalList() {
+  const cont = document.getElementById("personalList");
+  const retiradosCont = document.getElementById("personalRetiradosWrap");
+  const deLaSede = personalDeLaSede();
+
+  const activos = deLaSede.filter(p => p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const retirados = deLaSede.filter(p => !p.activo).sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+  cont.innerHTML = activos.length === 0
+    ? `<div class="empty-msg">Aún no has agregado a nadie activo en ${escapeHtml(sedeActual)}. Usa el formulario de arriba.</div>`
+    : activos.map(personaItemHtml).join("");
+
+  const toggle = document.getElementById("personalRetiradosToggle");
+  toggle.textContent = `🗄 Personal retirado (${retirados.length})`;
+  if (retirados.length === 0) {
+    retiradosCont.innerHTML = `<div class="empty-msg">No hay personal retirado en ${escapeHtml(sedeActual)}.</div>`;
+  } else {
+    retiradosCont.innerHTML = retirados.map(personaItemHtml).join("");
+  }
 }
 
 function selectHoraOptions(valorActual) {
@@ -1371,20 +1403,32 @@ function renderAll() {
 document.getElementById("btnAgregarPersonal").addEventListener("click", agregarPersonal);
 document.getElementById("nuevoPersonalNombre").addEventListener("keydown", (e) => { if (e.key === "Enter") agregarPersonal(); });
 
-document.getElementById("personalList").addEventListener("click", (e) => {
+function manejarClickPersonal(e) {
   const btnRetirar = e.target.closest(".btn-retirar");
   if (btnRetirar) { retirarPersona(btnRetirar.dataset.id); return; }
   const btnReactivar = e.target.closest(".btn-reactivar");
   if (btnReactivar) { reactivarPersona(btnReactivar.dataset.id); return; }
-});
-
-document.getElementById("personalList").addEventListener("change", (e) => {
+  const btnEliminar = e.target.closest(".btn-eliminar-persona");
+  if (btnEliminar) { eliminarPersonaDefinitivo(btnEliminar.dataset.id); return; }
+}
+function manejarChangePersonal(e) {
   const inputColor = e.target.closest(".input-color-persona");
   if (inputColor) { actualizarColorPersona(inputColor.dataset.id, inputColor.value); return; }
   const selectTurno = e.target.closest(".select-turno-persona");
   if (selectTurno) { actualizarTurnoPersona(selectTurno.dataset.id, selectTurno.value); return; }
   const selectSede = e.target.closest(".select-sede-persona");
   if (selectSede) { actualizarSedePersona(selectSede.dataset.id, selectSede.value); return; }
+}
+document.getElementById("personalList").addEventListener("click", manejarClickPersonal);
+document.getElementById("personalList").addEventListener("change", manejarChangePersonal);
+document.getElementById("personalRetiradosWrap").addEventListener("click", manejarClickPersonal);
+document.getElementById("personalRetiradosWrap").addEventListener("change", manejarChangePersonal);
+
+document.getElementById("personalRetiradosToggle").addEventListener("click", () => {
+  const wrap = document.getElementById("personalRetiradosWrap");
+  wrap.style.display = wrap.style.display === "none" ? "flex" : "none";
+  wrap.style.flexDirection = "column";
+  wrap.style.gap = "8px";
 });
 
 document.getElementById("btnAgregarFestivo").addEventListener("click", agregarFestivo);
