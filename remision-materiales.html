@@ -1,0 +1,2243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Remisión de Materiales · Somos Internet</title>
+<style>
+  :root {
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --accent-soft: #eff6ff;
+    --ink: #0f172a;
+    --ink-soft: #475569;
+    --ink-faint: #94a3b8;
+    --line: #e2e8f0;
+    --line-soft: #eef1f6;
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --danger: #dc2626;
+    --danger-soft: #fef2f2;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px -8px rgba(15,23,42,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .app { display: grid; grid-template-columns: 340px 1fr; min-height: 100vh; }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    padding: 22px 18px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-head { margin-bottom: 16px; }
+  .brand-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .brand-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
+  .brand-row span { font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
+  .data-status {
+    font-size: 10.5px; color: var(--ink-faint); margin-bottom: 12px; display: flex;
+    align-items: center; gap: 5px;
+  }
+  .data-status .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); flex: none; }
+  .data-status.ok .dot { background: #16a34a; }
+  .data-status.ok { color: #16a34a; }
+  .data-status.local .dot { background: #94a3b8; }
+  .data-status.error .dot { background: #dc2626; }
+  .data-status.error { color: #dc2626; }
+  .sidebar h3 {
+    font-size: 11px; font-weight: 700; color: var(--ink-faint);
+    text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px;
+  }
+  .count-badge {
+    font-size: 11px; font-weight: 700; color: var(--accent);
+    background: var(--accent-soft); padding: 1px 7px; border-radius: 999px; margin-left: 6px;
+  }
+  .search-box {
+    width: 100%; padding: 10px 12px 10px 34px; font-size: 13px;
+    border: 1px solid var(--line); border-radius: var(--radius-sm);
+    outline: none; margin-bottom: 12px; background: var(--bg);
+    transition: border-color .15s, background .15s;
+  }
+  .search-box:focus { border-color: var(--accent); background: var(--surface); }
+  .search-wrap { position: relative; }
+  .search-wrap svg {
+    position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+    width: 14px; height: 14px; color: var(--ink-faint); pointer-events: none;
+  }
+  .mat-list { flex: 1; overflow-y: auto; margin: 0 -6px; padding: 0 6px; }
+  .mat-item {
+    display: flex; align-items: center;
+    padding: 9px 10px; border-radius: var(--radius-sm);
+    border: 1px solid transparent; margin-bottom: 4px; background: var(--bg);
+    transition: border-color .12s, background .12s;
+  }
+  .mat-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .mat-main { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; cursor: pointer; gap: 8px; }
+  .mat-item .sku { font-size: 10px; color: var(--ink-faint); font-family: "SF Mono", Consolas, monospace; }
+  .mat-item .mname { font-size: 13px; color: var(--ink); margin-top: 1px; }
+  .mat-item .add-btn {
+    flex: none; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; color: var(--ink-faint); line-height: 1; border-radius: 6px; background: var(--surface);
+    border: 1px solid var(--line); transition: all .12s;
+  }
+  .mat-item:hover .add-btn { color: var(--accent); border-color: var(--accent); background: var(--surface); }
+  .mat-del-btn {
+    flex: none; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center;
+    margin-left: 4px; background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 13px; border-radius: 6px; opacity: 0; transition: opacity .12s, color .12s, background .12s;
+  }
+  .mat-item:hover .mat-del-btn { opacity: 1; }
+  .mat-del-btn:hover { color: var(--danger); background: var(--danger-soft); }
+  .no-results { text-align: center; color: var(--ink-faint); font-size: 12px; padding: 30px 10px; }
+
+  /* MINI FORMULARIO AGREGAR */
+  .add-mini-toggle {
+    display: inline-block; background: none; border: none; color: var(--accent); cursor: pointer;
+    font-size: 12px; font-weight: 700; padding: 4px 2px; margin-bottom: 8px;
+  }
+  .add-mini-toggle:hover { text-decoration: underline; }
+  .add-mini-form {
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
+    padding: 10px; margin-bottom: 10px;
+  }
+  .add-mini-form input {
+    width: 100%; font-size: 12.5px; padding: 7px 9px; border: 1px solid var(--line);
+    border-radius: 6px; outline: none; font-family: inherit; margin-bottom: 6px; background: var(--surface);
+  }
+  .add-mini-form input:focus { border-color: var(--accent); }
+  .add-mini-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+  .add-mini-cancel {
+    padding: 5px 10px; background: transparent; border: 1px solid var(--line); border-radius: 6px;
+    font-size: 12px; color: var(--ink-soft); cursor: pointer;
+  }
+  .add-mini-save {
+    padding: 5px 12px; background: var(--accent); border: none; border-radius: 6px;
+    font-size: 12px; font-weight: 700; color: #fff; cursor: pointer;
+  }
+  .add-mini-save:hover { background: var(--accent-dark); }
+  .add-mini-hint { font-size: 10.5px; color: var(--ink-faint); margin-top: 4px; }
+
+  /* PREVIEW */
+  .preview { padding: 32px; }
+  .actions { display: flex; gap: 10px; margin-bottom: 18px; max-width: 780px; }
+  .btn-print {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 18px; background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-print:hover { background: var(--accent-dark); }
+  .btn-clear {
+    padding: 9px 16px; background: var(--surface); color: var(--ink-soft);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .btn-clear:hover { background: var(--danger-soft); color: var(--danger); border-color: #fecaca; }
+  .btn-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 16px; background: var(--surface); color: var(--ink);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); font-size: 13px;
+    font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .btn-label:hover { background: var(--accent-soft); color: var(--accent-dark); border-color: var(--accent); }
+
+  /* MODAL RÓTULO */
+  .rotulo-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,.45);
+    align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+  }
+  .rotulo-overlay.open { display: flex; }
+  .rotulo-modal {
+    background: var(--surface); border-radius: var(--radius); padding: 24px 26px 22px;
+    width: 720px; max-width: 100%; max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 20px 60px -10px rgba(15,23,42,.35);
+  }
+  .rotulo-modal h2 { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 4px; }
+  .rotulo-modal p.sub { font-size: 12.5px; color: var(--ink-soft); margin-bottom: 16px; }
+  .rotulo-columns { display: grid; grid-template-columns: 260px 1fr; gap: 24px; align-items: start; }
+  .rotulo-col-title {
+    font-size: 10.5px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 8px;
+  }
+  .dest-search {
+    width: 100%; padding: 8px 10px; font-size: 12.5px; border: 1px solid var(--line);
+    border-radius: var(--radius-sm); outline: none; margin-bottom: 8px; background: var(--bg);
+  }
+  .dest-search:focus { border-color: var(--accent); background: var(--surface); }
+  .dest-list { max-height: 330px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; margin: 0 -4px; padding: 0 4px; }
+  .dest-item {
+    display: flex; align-items: center; padding: 7px 9px; border-radius: var(--radius-sm);
+    background: var(--bg); border: 1px solid transparent; transition: all .12s;
+  }
+  .dest-item:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .dest-main { flex: 1; min-width: 0; cursor: pointer; }
+  .dest-item .dname { font-size: 12px; font-weight: 700; color: var(--ink); line-height: 1.3; }
+  .dest-item .daddr { font-size: 10.5px; color: var(--ink-faint); margin-top: 1px; line-height: 1.3; }
+  .dest-del-btn {
+    flex: none; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+    margin-left: 4px; background: none; border: none; color: var(--ink-faint); cursor: pointer;
+    font-size: 12px; border-radius: 6px; opacity: 0; transition: opacity .12s, color .12s, background .12s;
+  }
+  .dest-item:hover .dest-del-btn { opacity: 1; }
+  .dest-del-btn:hover { color: var(--danger); background: var(--danger-soft); }
+  .dest-empty { text-align: center; color: var(--ink-faint); font-size: 11.5px; padding: 16px 6px; }
+  .rotulo-field { margin-bottom: 12px; }
+  .rotulo-field label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint);
+    font-weight: 700; display: block; margin-bottom: 4px;
+  }
+  .rotulo-field input {
+    width: 100%; font-size: 13.5px; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: var(--radius-sm); outline: none; font-family: inherit; color: var(--ink);
+  }
+  .rotulo-field input:focus { border-color: var(--accent); }
+  .rotulo-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .rotulo-btn-cancel {
+    padding: 8px 14px; background: transparent; border: 1px solid var(--line);
+    border-radius: var(--radius-sm); font-size: 13px; color: var(--ink-soft); cursor: pointer;
+  }
+  .rotulo-btn-cancel:hover { background: var(--bg); }
+  .rotulo-btn-generate {
+    padding: 8px 16px; background: var(--accent); border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 700; color: #fff; cursor: pointer;
+  }
+  .rotulo-btn-generate:hover { background: var(--accent-dark); }
+  .rotulo-btn-preview {
+    padding: 8px 16px; background: var(--surface); border: 1px solid var(--accent);
+    border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; color: var(--accent); cursor: pointer;
+  }
+  .rotulo-btn-preview:hover { background: var(--accent-soft); }
+  @media print { .rotulo-overlay, .rotulo-preview-overlay { display: none !important; } }
+
+  /* VISTA PREVIA DEL RÓTULO */
+  .rotulo-preview-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,.6);
+    align-items: center; justify-content: center; z-index: 1100; padding: 20px;
+  }
+  .rotulo-preview-overlay.open { display: flex; }
+  .rotulo-preview-card {
+    background: var(--surface); border-radius: var(--radius); padding: 20px;
+    box-shadow: 0 20px 60px -10px rgba(15,23,42,.4); max-width: 95vw;
+  }
+  .rotulo-preview-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .rotulo-preview-head h3 { font-size: 14px; font-weight: 800; color: var(--ink); }
+  .rotulo-preview-close {
+    border: none; background: var(--bg); color: var(--ink-soft); width: 26px; height: 26px;
+    border-radius: 7px; cursor: pointer; font-size: 14px; line-height: 1;
+  }
+  .rotulo-preview-close:hover { background: var(--danger-soft); color: var(--danger); }
+  #rotulo-preview-frame {
+    width: 570px; height: 380px; max-width: 90vw; border: 1px solid var(--line);
+    border-radius: 8px; display: block;
+  }
+  .rotulo-preview-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+
+  /* HISTORIAL */
+  .historial-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(15,23,42,.5);
+    align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+  }
+  .historial-overlay.open { display: flex; }
+  .historial-modal {
+    background: var(--surface); border-radius: var(--radius); padding: 22px 24px;
+    width: 820px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px -10px rgba(15,23,42,.35);
+  }
+  .historial-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .historial-head h2 { font-size: 16px; font-weight: 800; color: var(--ink); }
+  .historial-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .historial-tab {
+    padding: 7px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+    font-size: 12.5px; font-weight: 600; color: var(--ink-soft); cursor: pointer;
+  }
+  .historial-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .historial-body { flex: 1; overflow-y: auto; min-height: 200px; }
+  .historial-empty { text-align: center; color: var(--ink-faint); font-size: 13px; padding: 40px 10px; }
+  .historial-card {
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 10px;
+  }
+  .historial-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; gap: 10px; }
+  .historial-card-head .htitle { font-size: 13px; font-weight: 700; color: var(--ink); }
+  .historial-card-head .hdate { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+  .historial-card-body { font-size: 12px; color: var(--ink-soft); line-height: 1.5; }
+  .historial-card-items { margin-top: 6px; font-size: 11.5px; color: var(--ink-faint); }
+  .historial-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .historial-refresh {
+    padding: 7px 14px; background: transparent; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+  }
+  .historial-refresh:hover { background: var(--bg); }
+  .historial-close {
+    padding: 7px 16px; background: var(--accent); border: none; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 700; color: #fff; cursor: pointer;
+  }
+  @media print { .historial-overlay { display: none !important; } }
+
+  /* DOCUMENTO IMPRIMIBLE */
+  .print-area {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 40px 44px; max-width: 780px; color: var(--ink);
+  }
+  .doc-header {
+    display: grid; grid-template-columns: 120px 1fr auto; gap: 24px; align-items: start;
+    margin-bottom: 24px; padding-bottom: 20px; border-bottom: 2px solid var(--ink);
+  }
+  .logo-box {
+    width: 120px; height: 76px; border: 2px dashed var(--line); border-radius: var(--radius-sm);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; background: var(--bg); overflow: hidden; position: relative;
+    transition: border-color .15s;
+  }
+  .logo-box:hover { border-color: var(--accent); }
+  .logo-box img { width: 100%; height: 100%; object-fit: contain; display: none; }
+  .logo-box span { font-size: 10.5px; color: var(--ink-faint); text-align: center; line-height: 1.5; padding: 0 6px; }
+  #logo-upload { display: none; }
+  .doc-title h1 { font-size: 21px; font-weight: 800; color: var(--ink); letter-spacing: -0.01em; margin-bottom: 3px; }
+  .doc-title p { font-size: 12.5px; color: var(--ink-soft); }
+  .doc-meta { text-align: right; min-width: 180px; }
+  .meta-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 7px; }
+  .meta-label { font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
+  .meta-input {
+    font-size: 12.5px; border: none; border-bottom: 1px solid var(--line); outline: none;
+    width: 130px; text-align: right; color: var(--ink); background: transparent; padding: 2px 0;
+    font-family: inherit;
+  }
+  .meta-input:focus { border-bottom-color: var(--accent); }
+
+  .info-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 22px; }
+  .info-field label {
+    font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em;
+    display: block; margin-bottom: 4px; font-weight: 600;
+  }
+  .info-field input {
+    font-size: 13.5px; border: none; border-bottom: 1px solid var(--line); outline: none;
+    width: 100%; color: var(--ink); background: transparent; padding: 4px 0; font-family: inherit;
+  }
+  .info-field input:focus { border-bottom-color: var(--accent); }
+
+  table.items { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 12.5px; }
+  table.items th {
+    background: var(--ink); color: #fff; padding: 9px 12px; text-align: left;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  table.items th:first-child { border-radius: 6px 0 0 0; }
+  table.items th:last-child { border-radius: 0 6px 0 0; }
+  table.items th.center { text-align: center; }
+  table.items td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); }
+  table.items tr:last-child td { border-bottom: 1px solid var(--line); }
+  table.items td.sku { font-family: "SF Mono", Consolas, monospace; font-size: 11px; color: var(--ink-faint); }
+  table.items td.center { text-align: center; }
+  .qty-ctrl { display: inline-flex; align-items: center; gap: 6px; }
+  .qty-btn {
+    width: 22px; height: 22px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface);
+    cursor: pointer; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    color: var(--ink-soft); transition: all .12s;
+  }
+  .qty-btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .qty-input {
+    font-size: 13px; font-weight: 700; width: 54px; text-align: center; border: 1px solid var(--line);
+    border-radius: 6px; padding: 3px 4px; outline: none; background: var(--surface); font-family: inherit;
+  }
+  .qty-input:focus { border-color: var(--accent); }
+  .del-btn {
+    color: var(--ink-faint); cursor: pointer; font-size: 14px; border: none; background: none;
+    padding: 4px 7px; border-radius: 6px; transition: all .12s;
+  }
+  .del-btn:hover { color: var(--danger); background: var(--danger-soft); }
+  .empty-row td { text-align: center; color: var(--ink-faint); font-size: 12.5px; padding: 30px; font-style: italic; }
+
+  .obs-field { margin-top: 4px; margin-bottom: 18px; }
+  .obs-field label {
+    font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em;
+    display: block; margin-bottom: 5px; font-weight: 600;
+  }
+  .obs-field textarea {
+    width: 100%; font-size: 12.5px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    outline: none; color: var(--ink); background: var(--bg); padding: 8px 10px; resize: none;
+    height: 52px; font-family: inherit;
+  }
+  .obs-field textarea:focus { border-color: var(--accent); background: var(--surface); }
+
+  .sig-section { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-top: 14px; }
+  .sig-box { margin-top: 34px; border-top: 1px solid var(--ink-faint); padding-top: 7px; }
+  .sig-box label {
+    font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em;
+    display: block; margin-bottom: 3px; font-weight: 600;
+  }
+  .sig-box input { font-size: 12.5px; border: none; outline: none; width: 100%; color: var(--ink); background: transparent; padding: 2px 0; font-family: inherit; }
+
+  @media print {
+    body { background: white; }
+    .sidebar, .actions, .del-btn, .qty-btn { display: none !important; }
+    .qty-input { border: none !important; background: transparent !important; }
+    .app { display: block; }
+    .preview { padding: 0; background: white; }
+    .print-area { border: none; border-radius: 0; padding: 0; max-width: 100%; box-shadow: none; }
+    .meta-input, .info-field input, .sig-box input, .obs-field textarea { border-color: #aaa !important; }
+    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    table.items th { background: #111 !important; color: #fff !important; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR BASE DE DATOS -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <div class="brand-row"><span class="brand-dot"></span><span>Somos Internet</span></div>
+      <div class="data-status" id="data-status">Cargando datos…</div>
+      <h3>Base de materiales <span class="count-badge" id="db-count"></span></h3>
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input class="search-box" id="search" placeholder="Buscar por SKU o nombre..." oninput="filterItems()">
+      </div>
+
+      <button class="add-mini-toggle" id="add-material-toggle" onclick="toggleAddMaterial()">+ Agregar material</button>
+      <div class="add-mini-form" id="add-material-form" style="display:none;">
+        <input id="new-mat-sku" placeholder="SKU">
+        <input id="new-mat-name" placeholder="Nombre del material">
+        <div class="add-mini-actions">
+          <button class="add-mini-cancel" onclick="toggleAddMaterial(false)">Cancelar</button>
+          <button class="add-mini-save" onclick="saveNewMaterial()">Guardar</button>
+        </div>
+        <div class="add-mini-hint" id="add-material-hint"></div>
+      </div>
+    </div>
+    <div class="mat-list" id="mat-list"></div>
+  </div>
+
+  <!-- ÁREA DE PREVISUALIZACIÓN -->
+  <div class="preview">
+    <div class="actions">
+      <button class="btn-print" onclick="printRemision()">🖨️ Imprimir / Guardar PDF</button>
+      <button class="btn-label" onclick="openRotuloModal()">🏷️ Rótulo</button>
+      <button class="btn-label" onclick="openHistorial()">📜 Historial</button>
+      <button class="btn-clear" onclick="clearAll()">Limpiar todo</button>
+    </div>
+
+    <div class="print-area">
+      <!-- ENCABEZADO -->
+      <div class="doc-header">
+        <div class="logo-box" onclick="document.getElementById('logo-upload').click()">
+          <img id="logo-img" src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIbGNtcwIQAABtbnRyUkdCIFhZWiAH4gADABQACQAOAB1hY3NwTVNGVAAAAABzYXdzY3RybAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWhhbmSdkQA9QICwPUB0LIGepSKOAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAAF9jcHJ0AAABDAAAAAx3dHB0AAABGAAAABRyWFlaAAABLAAAABRnWFlaAAABQAAAABRiWFlaAAABVAAAABRyVFJDAAABaAAAAGBnVFJDAAABaAAAAGBiVFJDAAABaAAAAGBkZXNjAAAAAAAAAAV1UkdCAAAAAAAAAAAAAAAAdGV4dAAAAABDQzAAWFlaIAAAAAAAAPNUAAEAAAABFslYWVogAAAAAAAAb6AAADjyAAADj1hZWiAAAAAAAABilgAAt4kAABjaWFlaIAAAAAAAACSgAAAPhQAAtsRjdXJ2AAAAAAAAACoAAAB8APgBnAJ1A4MEyQZOCBIKGAxiDvQRzxT2GGocLiBDJKwpai5+M+s5sz/WRldNNlR2XBdkHWyGdVZ+jYgskjacq6eMstu+mcrH12Xkd/H5////2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/wAALCAJ0BLABAREA/8QAHgABAAICAwEBAQAAAAAAAAAAAAgJBwoEBQYDAgH/xABeEAEAAQMDAQQEBQwLDAkDBQEAAQIDBAUGEQcICRIhEzFBURkiYXGVFDI4UlZXdoGRtNLTFRcjN0JVdZOhstEWGDM2YnN0gpKWsbMkNFNkcoOio7UlQ5Q1RGOkwcL/2gAIAQEAAD8AqqAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB//9k=" style="display:block;">
+          <span id="logo-ph" style="display:none;">Click para subir logo</span>
+          <input type="file" id="logo-upload" accept="image/*" onchange="loadLogo(this)">
+        </div>
+
+        <div class="doc-title">
+          <h1>Remisión de Materiales</h1>
+          <p>Documento de despacho interno</p>
+        </div>
+
+        <div class="doc-meta">
+          <div class="meta-row">
+            <span class="meta-label">No. Transacción</span>
+            <input class="meta-input" id="num-trans" placeholder="TRX-0001">
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Fecha</span>
+            <input class="meta-input" id="fecha" type="date">
+          </div>
+        </div>
+      </div>
+
+      <!-- SEDE Y DESTINO -->
+      <div class="info-row">
+        <div class="info-field">
+          <label>Sede / Bodega que despacha</label>
+          <input id="sede-origen" placeholder="Ej: CEDI Medellín">
+        </div>
+        <div class="info-field">
+          <label>Destino / Área receptora</label>
+          <input id="sede-destino" placeholder="Ej: CEDI Rionegro">
+        </div>
+      </div>
+
+      <!-- TABLA DE MATERIALES -->
+      <table class="items">
+        <thead>
+          <tr>
+            <th style="width:105px">SKU</th>
+            <th>Nombre del material</th>
+            <th class="center" style="width:100px">Cantidad</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="items-body">
+          <tr class="empty-row"><td colspan="4">← Selecciona materiales desde el panel izquierdo</td></tr>
+        </tbody>
+      </table>
+
+      <!-- OBSERVACIONES -->
+      <div class="obs-field">
+        <label>Observaciones</label>
+        <textarea id="obs" placeholder="Notas adicionales sobre el despacho..."></textarea>
+      </div>
+
+      <!-- FIRMAS -->
+      <div class="sig-section">
+        <div class="sig-box">
+          <label>Alistado por</label>
+          <input id="alistado-por" placeholder="Nombre completo">
+        </div>
+        <div class="sig-box">
+          <label>Despachado por</label>
+          <input id="despachado-por" placeholder="Nombre completo">
+        </div>
+        <div class="sig-box">
+          <label>Recibido por</label>
+          <input id="recibido-por" placeholder="Nombre completo">
+        </div>
+        <div class="sig-box">
+          <label>Cargo / Observación de recibo</label>
+          <input id="cargo-recibo" placeholder="">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RÓTULO DE ENVÍO -->
+<div class="rotulo-overlay" id="rotulo-overlay" onmousedown="if(event.target===this) closeRotuloModal()">
+  <div class="rotulo-modal">
+    <h2>Rótulo de envío</h2>
+    <p class="sub">Elige un destinatario guardado para autocompletar, o escribe los datos manualmente.</p>
+
+    <div class="rotulo-columns">
+      <div>
+        <div class="rotulo-col-title">Destinatarios guardados</div>
+        <input class="dest-search" id="dest-search" placeholder="Buscar por nombre, ciudad..." oninput="filterDestinatarios()">
+        <div class="dest-list" id="dest-list"></div>
+
+        <button class="add-mini-toggle" id="add-dest-toggle" onclick="toggleAddDestinatario()">+ Agregar destinatario</button>
+        <div class="add-mini-form" id="add-dest-form" style="display:none;">
+          <input id="new-dest-empresa" placeholder="Empresa / nombre">
+          <input id="new-dest-contacto" placeholder="Contacto (opcional)">
+          <input id="new-dest-telefono" placeholder="Teléfono (opcional)">
+          <input id="new-dest-direccion" placeholder="Dirección">
+          <div class="add-mini-actions">
+            <button class="add-mini-cancel" onclick="toggleAddDestinatario(false)">Cancelar</button>
+            <button class="add-mini-save" onclick="saveNewDestinatario()">Guardar</button>
+          </div>
+          <div class="add-mini-hint" id="add-dest-hint"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="rotulo-field">
+          <label>Cantidad de cajas</label>
+          <input id="rot-cajas" type="number" min="1" placeholder="Ej: 3">
+        </div>
+        <div class="rotulo-field">
+          <label>Contenido de la caja</label>
+          <input id="rot-contenido" placeholder="Ej: Routers, cables, herramientas">
+        </div>
+        <div class="rotulo-field">
+          <label>Dirección</label>
+          <input id="rot-direccion" placeholder="Ej: Calle 10 # 45-20">
+        </div>
+        <div class="rotulo-field">
+          <label>Nombre destino</label>
+          <input id="rot-nombre-destino" placeholder="Ej: CEDI Rionegro">
+        </div>
+        <div class="rotulo-field">
+          <label>Sede que envía</label>
+          <input id="rot-sede-envia" placeholder="Ej: CEDI Medellín">
+        </div>
+        <div class="rotulo-field">
+          <label>Quién envía</label>
+          <input id="rot-quien-envia" placeholder="Nombre completo">
+        </div>
+        <div class="rotulo-field">
+          <label>Quién recibe</label>
+          <input id="rot-quien-recibe" placeholder="Nombre completo">
+        </div>
+      </div>
+    </div>
+
+    <div class="rotulo-modal-actions">
+      <button class="rotulo-btn-cancel" onclick="closeRotuloModal()">Cancelar</button>
+      <button class="rotulo-btn-preview" onclick="previewRotulo()">👁️ Vista previa</button>
+      <button class="rotulo-btn-generate" onclick="generateRotulo()">Generar e imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- VISTA PREVIA DEL RÓTULO SELECCIONADO -->
+<div class="rotulo-preview-overlay" id="rotulo-preview-overlay" onmousedown="if(event.target===this) closeRotuloPreview()">
+  <div class="rotulo-preview-card">
+    <div class="rotulo-preview-head">
+      <h3>Vista previa del rótulo</h3>
+      <button class="rotulo-preview-close" onclick="closeRotuloPreview()">✕</button>
+    </div>
+    <iframe id="rotulo-preview-frame"></iframe>
+    <div class="rotulo-preview-actions">
+      <button class="rotulo-btn-cancel" onclick="closeRotuloPreview()">Cerrar</button>
+      <button class="rotulo-btn-generate" onclick="generateRotulo()">Generar e imprimir</button>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORIAL DE REMISIONES Y RÓTULOS -->
+<div class="historial-overlay" id="historial-overlay" onmousedown="if(event.target===this) closeHistorial()">
+  <div class="historial-modal">
+    <div class="historial-head">
+      <h2>Historial</h2>
+      <button class="rotulo-preview-close" onclick="closeHistorial()">✕</button>
+    </div>
+    <div class="historial-tabs">
+      <button class="historial-tab active" id="tab-remisiones" onclick="switchHistorialTab('remisiones')">Remisiones</button>
+      <button class="historial-tab" id="tab-rotulos" onclick="switchHistorialTab('rotulos')">Rótulos</button>
+    </div>
+    <div class="historial-body" id="historial-body">
+      <div class="historial-empty">Cargando…</div>
+    </div>
+    <div class="historial-actions">
+      <button class="historial-refresh" onclick="loadHistorial()">↻ Actualizar</button>
+      <button class="historial-close" onclick="closeHistorial()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN DE SUPABASE (opcional)
+// Si quieres que los materiales, destinatarios e historial vivan en una
+// base de datos real (Supabase) en vez de quedar fijos en este archivo,
+// crea un proyecto gratis en https://supabase.com, corre el script
+// supabase_schema.sql que te entregamos, y pega aquí tu URL y tu llave
+// pública "anon" (Project Settings > API). Mientras estos campos queden
+// como están, la app funciona igual que antes con los datos locales.
+// ============================================================
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+
+let sb = null;
+function isSupabaseConfigured() {
+  return !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+}
+if (isSupabaseConfigured()) {
+  try {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.error('No se pudo crear el cliente de Supabase:', e);
+    sb = null;
+  }
+}
+
+function setDataStatus(mode, text) {
+  const el = document.getElementById('data-status');
+  if (!el) return;
+  el.className = 'data-status ' + mode;
+  el.innerHTML = '<span class="dot"></span>' + text;
+}
+
+let DB = [
+  {sku:'5007010', name:'ABRAZADERA RIEL CHANEL COMPLETAS 2"'},
+  {sku:'5015212', name:'LOCKER DE 3 PUESTOS'},
+  {sku:'3004002', name:'AROMATICA COMODATO'},
+  {sku:'5010008', name:'GABINETE RACK 180 X 60 X 70 FONDO'},
+  {sku:'3006225', name:'POLO NEGRA TALLA XXXL'},
+  {sku:'5006090', name:'TOMA HEMBRA SENCILLA CAUCHO'},
+  {sku:'3003013', name:'CINTA DOBLE FAZ'},
+  {sku:'3003070', name:'REPOSA PIES'},
+  {sku:'3006009', name:'BOTA DE CAUCHO CON PUNTA TALLA 39'},
+  {sku:'3004003', name:'AZUCAR'},
+  {sku:'1003003', name:'REDES__CLOUD CORE ROUTER CCR1036-12G-4S-EM'},
+  {sku:'5010012', name:'GABINETE RACK 210X60X60'},
+  {sku:'5003024', name:'MUESTRA FIBRA DROP'},
+  {sku:'4001001', name:'AIRE ACONDICIONADO LG 18 BTU CONV 220V'},
+  {sku:'1004024', name:'REDES DM4270 48XS+6CX'},
+  {sku:'7001001', name:'ARCO INFLABLE PEATONAL'},
+  {sku:'3001003', name:'BOLSA GRANDE HOGAR BLANCA(paquete)'},
+  {sku:'1001001', name:'ANTENA AirFIBER60-LR-US - RADIO'},
+  {sku:'3002003', name:'BATERIA RECARGABLE AA'},
+  {sku:'5014001', name:'ANTENA CELULAR QUECTEL'},
+  {sku:'4001054', name:'CARRO DE MERCADO PLEGABLE'},
+  {sku:'1001007', name:'ANTENA SIKLU ETHERHAUL 1FT'},
+  {sku:'5013001', name:'ARANDELA WASA DE 1/2"'},
+  {sku:'5007012', name:'ADAPTADOR CORAZA 1/2" (AMARILLO)'},
+  {sku:'2004028', name:'DELL 300GB 15K 12GBPS SAS 2.5 HDD USED'},
+  {sku:'1009077', name:'ALICATE DE CORTE IMPRESORA 3D'},
+  {sku:'7002001', name:'BONO NETFLIX'},
+  {sku:'3003001', name:'ARCHIVADOR AZ CARTA'},
+  {sku:'5007056', name:'CODO PVC PRESION 1/2"'},
+  {sku:'3006011', name:'BOTAS 35 HOMBRE'},
+  {sku:'1001003', name:'ANTENA AirFIBER60-HD'},
+  {sku:'1002100', name:'SWITCH F5800W-16S'},
+  {sku:'5007002', name:'ABRAZADERA DOBLE ALA 1 1/4"'},
+  {sku:'7004005', name:'ARNES FUTURE DIELECTRICO 4 ARGOLLAS'},
+  {sku:'3005069', name:'KIT DESTORNILLADOR DE PRECISION'},
+  {sku:'5015005', name:'AUTODESFORRE AZUL 2/16'},
+  {sku:'3006008', name:'BOTA DE CAUCHO CON  PUNTA TALLA 37'},
+  {sku:'7004001', name:'ANCLAJE PORTATIL DIELECTRICO'},
+  {sku:'1005001', name:'ADAPTADORES EQUIPOS REDES'},
+  {sku:'1001008', name:'ANTENA wAP 60GX3'},
+  {sku:'5007009', name:'ABRAZADERA RIEL CHANEL COMPLETAS 1" 1/4'},
+  {sku:'5007057', name:'UNION PVC PRESION 1/2"'},
+  {sku:'5015070', name:'BROCA DE MADERA PLANA'},
+  {sku:'3002005', name:'BATERIAS USADAS DE PATINETAS Y BICICLETAS'},
+  {sku:'5011007', name:'ALCOHOL ISOPROPILICO (1000ml)'},
+  {sku:'1001002', name:'ANTENA AirFIBER60-AF-US'},
+  {sku:'7004004', name:'ARNES EN Y'},
+  {sku:'1002001', name:'ARUBA INSTANT LON 1930 24G 4SFP + 370 W REDES'},
+  {sku:'3001052', name:'LIMPIADOR PISO GALON OLORES VARIOS'},
+  {sku:'5011001', name:'ACETONA X 500ML'},
+  {sku:'5013003', name:'ARANDELA VARILLA'},
+  {sku:'5007005', name:'ABRAZADERA DOBLE ALA 2"'},
+  {sku:'5015138', name:'disponible_oc'},
+  {sku:'5013004', name:'ARANDELA VARILLA 1/2"'},
+  {sku:'7004002', name:'ARNES 4 ARGOLLAS EN X CON HERRAJES ANTICORROSIÓN  NUEVO'},
+  {sku:'5011002', name:'AEROSOL AMARILLO'},
+  {sku:'3005142', name:'PISÓN 20 X 20 CM MANGO ACERO 119 CM'},
+  {sku:'5001006', name:'CABLE HDMI 1 METROS'},
+  {sku:'4001055', name:'CARRO CARGA PELGABLE AZUL'},
+  {sku:'3005005', name:'CERRADURA DE SOBRE PONER'},
+  {sku:'7001003', name:'BROUCHURE FINAL'},
+  {sku:'5012002', name:'BRUJULAS'},
+  {sku:'3005004', name:'CANDADO ANTICIZALLA/SEGURIDAD'},
+  {sku:'5015120', name:'ABRAZADERA DOS SALIDAS 200C'},
+  {sku:'5015014', name:'BROCA DE LAMINA 5/18 NORMAL'},
+  {sku:'5012003', name:'CADENA PLASTICA AMARILLA Y NEGRA'},
+  {sku:'7001004', name:'CAJAS PARA MASCOTA'},
+  {sku:'3004008', name:'CAFE DE 5 LIBRAS (2.5K)'},
+  {sku:'5001005', name:'REDES_CABLE DE PODER C13/C14'},
+  {sku:'6003001', name:'MASCARA/CARETA DE SOLDAR'},
+  {sku:'5006039', name:'TOMA DUPLEX LEVITON MODELO 5822-W 20A-250V'},
+  {sku:'3003007', name:'CARGADOR GENERICO PARA PANTALLA'},
+  {sku:'5013002', name:'ARANDELA PLANA DE 1/2"'},
+  {sku:'5015121', name:'ABRAZADERA DOS SALIDAS 220'},
+  {sku:'4001003', name:'CAJONERO CON TAPA NEGRO'},
+  {sku:'3003006', name:'CALCULADORA'},
+  {sku:'1007011', name:'PRUEBA_I96 MINI'},
+  {sku:'7001005', name:'CAJA SOMOS PUBLICIDAD 13X13'},
+  {sku:'4001005', name:'CARRO SACA PAQUETE'},
+  {sku:'5001001', name:'CABLE 2/0 ALUMINIO (PARARRAYOS) (SPT)'},
+  {sku:'3006030', name:'CAMILLA FERULA ESPINAL LARGA HT'},
+  {sku:'3003003', name:'BORRADORES DE TABLERO'},
+  {sku:'3006027', name:'CAMIBUSO GRIS/NEGRO TALLA XS'},
+  {sku:'3006037', name:'CAMISA POLO BORDADA SOMOS PRO T/M'},
+  {sku:'3003008', name:'CARPETA SOMOS DE COLORES'},
+  {sku:'5015018', name:'CANALETA PARA 3 CABLE DE 2MT'},
+  {sku:'4001072', name:'MANTEL NEGRO FABRICADO EN TELA MICROFIBRA COMEDOR 140X180CM'},
+  {sku:'2002015', name:'CELULAR SAMSUNG Galaxy A16 256GB 5G'},
+  {sku:'4001004', name:'CARPA'},
+  {sku:'5001008', name:'CABLE QSFP28-100G-0.5M'},
+  {sku:'2002002', name:'Celular ZTE Blade'},
+  {sku:'5015083', name:'BROCA DE LAMINA 1/2 PERCUTOR'},
+  {sku:'5015007', name:'BROCA DE LAMINA 1/4 PERCUTOR'},
+  {sku:'3006042', name:'FILTRO DE AIRE PARA MASCARA RESPIRADORA'},
+  {sku:'3003004', name:'CABLE USB TIPO C'},
+  {sku:'4001002', name:'BUTACO RIMAX AZULES'},
+  {sku:'3003010', name:'CINTA 3/8 ROTULADORA DYMO MECANICA'},
+  {sku:'3005067', name:'BASE PARA CAUTIN'},
+  {sku:'5014009', name:'REDES_PATCH CORD SP6A-S10-06B AZUL, CAT 6A, SFTP, 3M'},
+  {sku:'3003005', name:'CAJA DE REGALO SOMOS'},
+  {sku:'5006010', name:'CAJA PLASTICA 30X20'},
+  {sku:'3003009', name:'CHAPA GUANTERA NIQUEL 19X20MM'},
+  {sku:'5006011', name:'CAJA PLASTICA 40X35'},
+  {sku:'5015009', name:'BROCA DE MADERA'},
+  {sku:'3002007', name:'BOMBILLOS 15w'},
+  {sku:'5015204', name:'BATERÍA MTEK 12V 9AH'},
+  {sku:'5015012', name:'BROCA DE MURO 3/16'},
+  {sku:'5015211', name:'LÁMINA PSHI BLANCA 2MM'},
+  {sku:'3005007', name:'CONVERTIDOR TIPO C 3 (HDMI-USB-TIPO C)'},
+  {sku:'5009016', name:'ARGOLLA POSTE 02'},
+  {sku:'5011008', name:'CLORURO DE SODIO'},
+  {sku:'1003002', name:'CLOUD CORE ROUTER CCR1009-7G-1C-1S+ 7xGbit LAN'},
+  {sku:'5015209', name:'TAPA LED ORB-2'},
+  {sku:'5007039', name:'ABRAZADERA DOBLE ALA 3/4"'},
+  {sku:'1003007', name:'CLOUD CORE SERIES ROUTER CCR2004-16G-12S'},
+  {sku:'5006040', name:'CAJA METALICA DE PASO 20X20'},
+  {sku:'3005019', name:'ESCUADRA IMANTADA'},
+  {sku:'5005002', name:'CORAZA 1/2"'},
+  {sku:'1003005', name:'CLOUD CORE ROUTER CCR1072-1G-8S+'},
+  {sku:'5012005', name:'CINTA DRYWALL'},
+  {sku:'5008009', name:'CONECTOR RAPIDO DE CABLE EMPALME'},
+  {sku:'3006211', name:'CAMISETA NEGRA - COMERCIAL TALLA XXXXL'},
+  {sku:'5007013', name:'CONECTOR RECTO 2"'},
+  {sku:'5006012', name:'CLAVIJA PLASTICA HEMBRA'},
+  {sku:'5007016', name:'CONECTOR RECTO EMT 1" 1/4'},
+  {sku:'5012008', name:'ESPATULA ACERO'},
+  {sku:'5007015', name:'CONECTOR RECTO EMT 1" 1/2'},
+  {sku:'5015027', name:'CONTACTO MAGNETICO'},
+  {sku:'5015029', name:'EPOXIBONDER TRANSPARENTE 25GR'},
+  {sku:'5007022', name:'CURVA PVC DE 1/2"'},
+  {sku:'6004004', name:'COPITOS'},
+  {sku:'5007021', name:'CORAZA 1 1/4"'},
+  {sku:'2004013', name:'CABLE DE CONSOLA DB9 A RJ45'},
+  {sku:'5005005', name:'CORAZA PLASTICA 1"'},
+  {sku:'1002034', name:'NETPOWER LITE 7R CSS610-1Gi-7R-2S+OUT'},
+  {sku:'5006007', name:'CREMA DE SOLDADURA ORB ( PRODUCCION )'},
+  {sku:'1003018', name:'TP_LINK_DECO_X20_AX1800'},
+  {sku:'1003011', name:'CLOUD ROUTER SWITCH CRS305-1G-4S+IN'},
+  {sku:'5006091', name:'TOMA MACHO SENCILLA CAUCHO'},
+  {sku:'1003010', name:'CLOUD ROUTER SWITCH CRS112-8P-4S-IN'},
+  {sku:'1003016', name:'TP_LINK_DECO_M4'},
+  {sku:'7002002', name:'CUADERNO SOMOS'},
+  {sku:'3004009', name:'DISPENSADOR DE AGUA'},
+  {sku:'5002025', name:'CHIPA FIBRA 24 HILOS cm'},
+  {sku:'5012007', name:'ELECTRODO FERRETERO E-6011 HO 3/32 PULGADAS'},
+  {sku:'5012035', name:'SERRUCHO DE PUNTA'},
+  {sku:'1008015', name:'CORTODORA FIBRA ARMADA AST-210'},
+  {sku:'1003004', name:'CLOUD CORE ROUTER CCR1036-8G-2S+EM'},
+  {sku:'1003008', name:'CLOUD CORE SERIES ROUTER CCR2004-16G-2S+PC'},
+  {sku:'3005006', name:'CONVERTIDOR DE USB A MULTI USB'},
+  {sku:'1003025', name:'CLOUD CORE ROUTER CCR1009-7G-1C-1S+ 7xGbit LAN - REDES'},
+  {sku:'5006089', name:'MINI UPS BACKUP BATTERY'},
+  {sku:'1009002', name:'ESCALERA 24 PASOS CON APOYA POSTE METÁLICO (Inactivo)'},
+  {sku:'5008041', name:'KIT DE FIBRA RIMPORT 12 piezas'},
+  {sku:'5007018', name:'CONVERTIDOR EMT A CORAZA 1 1/4" (AZUL)'},
+  {sku:'3001007', name:'DESENGRASANTE'},
+  {sku:'7004012', name:'Inactivo ESLINGA DIELECTRICA DE POSICIONAMIENTO'},
+  {sku:'4001006', name:'ESCRITORIO PLEGABLE'},
+  {sku:'3003060', name:'TABLERO BLANCO 120X80'},
+  {sku:'2004033', name:'DRONE DJI MAVIC AIR 2 CON CAMARA 8k GRIS'},
+  {sku:'3003061', name:'TABLERO MIXTO 120X80'},
+  {sku:'1003052', name:'RG-RAP2260 H'},
+  {sku:'3005018', name:'ESCUADRA'},
+  {sku:'3001013', name:'ESPONJA PARA REJUNTES'},
+  {sku:'5015034', name:'FILAMENTO GRIS PLA 1KG'},
+  {sku:'6004007', name:'FAJA DE COTERO'},
+  {sku:'4001007', name:'GENERADOR DE GASOLINA Y ACEITE (Inactivo)'},
+  {sku:'5007068', name:'ACOPLE HEMBRA UNIVERSAL'},
+  {sku:'3006052', name:'GUANTES PARA SOLDAR'},
+  {sku:'5015165', name:'ORGANIZADORES PEQUEÑOS'},
+  {sku:'5015032', name:'FILAMENTO NEGRO 1.75 1kg'},
+  {sku:'5003007', name:'FIBRA 86 HILOS'},
+  {sku:'5015082', name:'DISCOS DIAMANTADO'},
+  {sku:'5008013', name:'FIBRA ÓPTICA MONOMODO CON CONECTORES LC-LC Duplex, Reforzada con Kevlar, PRECONECTORIZADA'},
+  {sku:'3001015', name:'INSECTICIDA X300ML FERTOX'},
+  {sku:'7004016', name:'LINEA DE VIDA DE 20 MTS (inactivo)'},
+  {sku:'3002008', name:'LAMPARA LED DE SOBREPONER'},
+  {sku:'3001018', name:'JABON LIQUIDO MILD MINI'},
+  {sku:'3001017', name:'DETERGENTE EN POLVO DE 1 KILO'},
+  {sku:'1005002', name:'FUENTE DE ALIMENTACION REGULADA 30V (0-10A)'},
+  {sku:'3006212', name:'PANTALÓN INFOBOOTH TALLA 48'},
+  {sku:'2004042', name:'CONTROL TV BOX Z8 I96 PLUS'},
+  {sku:'1008003', name:'FUSIONADORA SIGNAL FIRE AI9'},
+  {sku:'5001004', name:'CABLE COAXIAL RG6 NEGRO (metro)'},
+  {sku:'5001013', name:'FTPC 6 EXTERIOR UBIQUITI'},
+  {sku:'7003001', name:'GALLETAS PARA MASCOTAS PAQUETES POR 10'},
+  {sku:'3005136', name:'MANGUERA CORRUGADA SUCCIÓN 1x4.5'},
+  {sku:'3005022', name:'GRAMERA'},
+  {sku:'6004006', name:'EXTRACTOR DE PARED'},
+  {sku:'7001006', name:'FAROL INFLABLE ESTRUCTURA'},
+  {sku:'1009066', name:'JUEGO DE MACHUELOS Y TARRAJAS DE 40 PIEZAS TRUPER EN ESTUCHE'},
+  {sku:'3005025', name:'LLANA'},
+  {sku:'3002001', name:'BATERIA AA'},
+  {sku:'3003018', name:'INFLADOR DE BOMBAS'},
+  {sku:'1005003', name:'INVERSOR DE CORRIENTE CONTINUA A CORRIENTE ALTERNA 1500W'},
+  {sku:'1004001', name:'INVERSOR DE CORRIENTE DC 12V A 110C - CONVERTIDOR CON 4.8 A PUERTOS USB DUALES'},
+  {sku:'7001030', name:'HABLADORES SOMOS'},
+  {sku:'5015033', name:'FILAMENTO PREMIUM PLA 1,75MM BLANCO'},
+  {sku:'5008015', name:'LIMPIADOR DE CONECTORES GENERICOS 2.5mm'},
+  {sku:'2001011', name:'TV 43"/60"'},
+  {sku:'5009003', name:'Herraje de retención de 6mm a 7mm de 45 cm acero'},
+  {sku:'1002033', name:'SWITCH ROUTERBOARD RB260 GS'},
+  {sku:'3005024', name:'LINTERNA SET DE HERRAMIENTA  BLACKBURN'},
+  {sku:'3003017', name:'HUELLERO'},
+  {sku:'3006046', name:'GORRAS NARANJA'},
+  {sku:'5012010', name:'GUSBA'},
+  {sku:'3005030', name:'MANGO PARA SEGUETA'},
+  {sku:'2004011', name:'CONVERTIDOR TIPO C A HDMI'},
+  {sku:'5015037', name:'LIJA DE 320 GRANOS'},
+  {sku:'1005004', name:'INVERSOR DE ONDA PURA 3000W/48V + CONTROL REMOTO'},
+  {sku:'2003001', name:'LECTOR CODIGOS DE BARRAS'},
+  {sku:'5015030', name:'LIJA DE 120 GRANOS'},
+  {sku:'1009067', name:'JUEGO DE LLAVES ALLEN EN T 10 PIEZAS 2-10 MM CON SOPORTE MP TOOLS'},
+  {sku:'1004002', name:'INVERSOR POWER INVERTER 3000 CARSPA'},
+  {sku:'7001008', name:'LETRERO ZONAS COMUNES'},
+  {sku:'1006040', name:'CABLE DELL QSFP28 100GbE - 3M'},
+  {sku:'5008020', name:'PATCH CORD LC/PC-LC/PC SM 9/125  DUPLEX 1.8MM LSZH 20MT'},
+  {sku:'5012011', name:'MENSULA GALVANIZADA 30 CM'},
+  {sku:'2004003', name:'COMBO TECLADO Y MOUSE INALAMBRICO'},
+  {sku:'5002016', name:'CHIPA FIBRA DROP DE 4 HILOS'},
+  {sku:'5015042', name:'PAQUETE DE BOLSAS BIODEGRADABLES LILA X 100UN'},
+  {sku:'1005068', name:'POWER DISTRIBUTION UNIT 3U PDU-3A'},
+  {sku:'3006054', name:'OVEROL MANGAS LARGAS'},
+  {sku:'5004001', name:'TUBO PARARRAYOS FRANCE'},
+  {sku:'2002003', name:'CELULAR VLEFONE'},
+  {sku:'5015038', name:'MARCADOR INDUSTRIAL'},
+  {sku:'5007007', name:'ABRAZADERA RIEL CHANEL COMPLETAS 1"'},
+  {sku:'3006067', name:'JEAN SIN REFLECTIVO TALLA 8'},
+  {sku:'4001009', name:'MESA AUXILIAR'},
+  {sku:'5002015', name:'CHIPA FIBRA DROP 2 HILOS'},
+  {sku:'3003022', name:'MINAS 0.5'},
+  {sku:'3004010', name:'MOLINO CAFE MANUAL'},
+  {sku:'4001012', name:'MOTOR DE MALACATE'},
+  {sku:'1005031', name:'PDU MONITOREABLE PARA RACK 20A 120-208V'},
+  {sku:'5008021', name:'PATCH CORD DE FIBRA ÓPTICA DSC/APC-DSC/APC DE 30M VERDE - VERDE'},
+  {sku:'3005033', name:'NIVEL'},
+  {sku:'5003011', name:'N/USA FIBRA 4 HILOS'},
+  {sku:'4001013', name:'NEVERA HACEB NF 226L'},
+  {sku:'5002006', name:'CANALETA DE 3 CABLES CM'},
+  {sku:'6004008', name:'PALETA PUNTO DE ENCUENTRO'},
+  {sku:'3006055', name:'OVEROL INSTALACIONES'},
+  {sku:'1006028', name:'BIDI_SFP LS-BL332710-10C  Mikrotik CODE (AZUL)'},
+  {sku:'5002001', name:'MERMA CABLE 2/0 ALUMINIO (PARARRAYOS) (SPT)'},
+  {sku:'5008025', name:'PATCH CORD LC/UPC-LC/UPC DE 1M'},
+  {sku:'3001011', name:'ESPONJA LAVA LOZA'},
+  {sku:'1003037', name:'AIRCUBE'},
+  {sku:'3001023', name:'MATA MOSCA'},
+  {sku:'5004002', name:'PARARRAYOS FRANKLIN'},
+  {sku:'3005034', name:'PALUSTRE'},
+  {sku:'7001035', name:'BRANDING VEHICULOS SOMOS'},
+  {sku:'7001009', name:'MESA DE PUBLICIDAD'},
+  {sku:'4001008', name:'MEGA CAJA CON RUEDAS'},
+  {sku:'5002010', name:'CHIPA FIBRA 4 HILOS'},
+  {sku:'1009011', name:'SIERRA DE BANCO GTS 254'},
+  {sku:'1002037', name:'DM4370 4GT+4GX+4XS'},
+  {sku:'5008027', name:'PATCH CORD LC-LC 2M DUPLEX'},
+  {sku:'3006066', name:'JEAN SIN REFLECTIVO TALLA 42'},
+  {sku:'1009073', name:'SERVICIO DE MANTENIMIENTO PREVENTIVO Y CORRECTIVO'},
+  {sku:'5002020', name:'MERMA TUBO EMT DE 1" 1/2'},
+  {sku:'5012012', name:'MENSULA GALVANIZADA 40CM'},
+  {sku:'5008022', name:'PATCH CORD SC/APC-LC/UPC SM SX G657A2 3MM YELLOW LSZH 20m VERDE - AZUL'},
+  {sku:'2004025', name:'SOPORTE DE MONITOR'},
+  {sku:'5008029', name:'PATCH CORD LAN / DE COBRE/ DE RED DE 1 METRO'},
+  {sku:'5008023', name:'PATCH CORD LC-UPC/LC-UPC DUPLEX 40m AZUL - AZUL'},
+  {sku:'3006106', name:'BOTA DE CAUCHO CON PUNTA TALLA 36'},
+  {sku:'3005032', name:'MARTILLO GRANDE'},
+  {sku:'5014015', name:'Inactivo TARJETA DE RED 100GBPS  QSFP56'},
+  {sku:'3006226', name:'POLO NEGRA TALLA XXXXL'},
+  {sku:'4001018', name:'SIRENA DE SEGURIDAD'},
+  {sku:'3004013', name:'SALEROS'},
+  {sku:'3001032', name:'RECOGEDOR'},
+  {sku:'3005047', name:'PRENSAS'},
+  {sku:'3005039', name:'PESCA GRANDE de 100MTS Inactivp'},
+  {sku:'3005041', name:'PESCA PLASTICA'},
+  {sku:'1001010', name:'RADIO SIKLU TX-L'},
+  {sku:'3003025', name:'PIZARRA ADHESIVO TIPO TABLERO BORRABLE'},
+  {sku:'1004003', name:'RB5009UG+S+IN'},
+  {sku:'3005143', name:'PICA'},
+  {sku:'3005042', name:'PICO CON CABO DE MADERA'},
+  {sku:'7001014', name:'POPMAN ARAÑA'},
+  {sku:'7001015', name:'POPMAN DOBLE CARA'},
+  {sku:'5015044', name:'PISTOLA PARA SILICONA (vidrio)'},
+  {sku:'1002035', name:'REDES_DM4270 24XS+2CX'},
+  {sku:'3001030', name:'RAID MAX MATA CUCARACHA'},
+  {sku:'7001011', name:'PENDON 1X2MTS PLANES'},
+  {sku:'3001029', name:'QUITAGRASA 123'},
+  {sku:'5008035', name:'PELACABLE DE FIBRA REDONDO'},
+  {sku:'3003050', name:'CARTUCHO TINTA HP 667 NEGRO'},
+  {sku:'1001011', name:'RADIO TERRAGRAF MLTG-360'},
+  {sku:'1002005', name:'RBwAPG-60aD-AP'},
+  {sku:'3001031', name:'RECIPIENTE'},
+  {sku:'3004011', name:'RECIPIENTE DE AZUCAR'},
+  {sku:'7001012', name:'PENDON 1X2MTS TABLA COMPARATIVA'},
+  {sku:'3004012', name:'SAL'},
+  {sku:'3003026', name:'PLANTILLA PUNTO DE ENCUENTRO PARA PISOS 80X80 cm'},
+  {sku:'1003009', name:'CLOUD CORE SERIES ROUTER CCR2004-1G-12S+2XS'},
+  {sku:'5010013', name:'GABINETE RACK DE 210X60X80 NO DESMONTABLE'},
+  {sku:'3006071', name:'RESPIRADOR MEDIA MASCARA REF 6200M'},
+  {sku:'1003021', name:'ROUTER BOARD HEX RB960PGS'},
+  {sku:'1003022', name:'ROUTER RT-6400M'},
+  {sku:'3005048', name:'RODILLO DE PINTAR'},
+  {sku:'5015229', name:'ANCLAJE CONCRETO ROSCA INTERNA 1/2'},
+  {sku:'3001034', name:'SECADOR DE MANOS'},
+  {sku:'6004009', name:'SEÑALES DE EXTINTORES'},
+  {sku:'1004005', name:'SERVIDOR R440'},
+  {sku:'1006002', name:'SFP. MIKROTIK. 25G. 10 KM. 1310 NM'},
+  {sku:'4001014', name:'SILLA CHARLES EAMES MADERA'},
+  {sku:'3003032', name:'SOBRE MANILA 1/2 CARTA'},
+  {sku:'4001016', name:'SILLA METALICA PLEGABLE AZUL'},
+  {sku:'5015045', name:'PORTA BASTIDOR 10X50 DE CANALETA'},
+  {sku:'5008034', name:'PATCH CORD UTP CAT6 - 3M'},
+  {sku:'5008037', name:'REDES PATCH CORD DE FIBRA LC/UPC-LC/UPC LSZH DE 3M DUPLEX (contra incendio)'},
+  {sku:'3005036', name:'PELACHAQUETA FIBRA DROP'},
+  {sku:'3005045', name:'PONCHADORA DE IMPACTO'},
+  {sku:'5010002', name:'RACK 60X60'},
+  {sku:'1004004', name:'SERVIDOR NETFLIX OPEN CONNECT'},
+  {sku:'7002009', name:'POSTALES'},
+  {sku:'3005050', name:'SIERRA COPA BIMETALICA'},
+  {sku:'3001028', name:'PLUMERO'},
+  {sku:'1007003', name:'STICK XIAOMI'},
+  {sku:'5010003', name:'RACK BLANCO/BEIGE USADO'},
+  {sku:'1002038', name:'USG-PRO 4 UNIFI'},
+  {sku:'1001009', name:'RADIO SIKLU TX-H'},
+  {sku:'5007066', name:'ADAPTADOR MACHO PVC (1") 8L'},
+  {sku:'2001006', name:'COMPUTADOR MAC'},
+  {sku:'1005007', name:'UPS UNITEC'},
+  {sku:'5004004', name:'Inactivo TUBO EMT DE 1"'},
+  {sku:'1002019', name:'SWITH REIDUBO'},
+  {sku:'5007028', name:'T DE PVC 2"'},
+  {sku:'7001018', name:'TABLA DE PLANES DE TV'},
+  {sku:'3003033', name:'TABLERO BLANCO 120X120'},
+  {sku:'3003035', name:'TABLERO EN CORCHO'},
+  {sku:'5007035', name:'UNION 2" EMT'},
+  {sku:'5007067', name:'CURVA PVC 2"'},
+  {sku:'2004023', name:'CARGADOR BATERIA AA RECARGABLES'},
+  {sku:'5004012', name:'TUBO PVC  AGUA POTABLE 1/2¨ 21mm'},
+  {sku:'1002018', name:'SWITCH Z9100'},
+  {sku:'3005140', name:'MANGUERA PLANA MOTOBOMBA 2\'\' LARGO 7.5M TRUPER CONEXIONES'},
+  {sku:'7002010', name:'TERMO CON VALVULA'},
+  {sku:'5006021', name:'TERMOENCOGIBLES MULTICOLORES (paquetes)'},
+  {sku:'1001012', name:'TERRAGRAPH N366'},
+  {sku:'1001013', name:'TERRAGRAPH T280'},
+  {sku:'1002089', name:'UPDATED VERSION S600'},
+  {sku:'3001037', name:'VINAGRE PARA LIMPIEZA'},
+  {sku:'1009078', name:'CAJA DE HERRAMIENTAS 16"'},
+  {sku:'5015146', name:'PRENSA ESTOPA PVC 3/4'},
+  {sku:'5008081', name:'PIGTAIL LC/UPC 1.5M (RIBBON)'},
+  {sku:'2004004', name:'TABLA DIGITAL DE DISEÑO'},
+  {sku:'1003012', name:'CLOUD ROUTER SWITCH CRS309-1G-8S+IN'},
+  {sku:'5004003', name:'TUBO CUADRADO DE 2"'},
+  {sku:'1006007', name:'TRANSCEIVER SFP-10GSR-85'},
+  {sku:'5006038', name:'CAJA DE PASO 2*4'},
+  {sku:'1006011', name:'TRANSEIVER. S-31DLC20D'},
+  {sku:'1009049', name:'AMARRE CON TRINQUETE ESCALERAS INSTALACIONES'},
+  {sku:'7004014', name:'FRENO DE GUAYA'},
+  {sku:'5006027', name:'TOMA HEMBRA SENCILLO'},
+  {sku:'5004007', name:'TUBO IMC GALVANIZADA 1" 1/4'},
+  {sku:'5004008', name:'TUBO IMC GALVANIZADA 1/2"'},
+  {sku:'1002017', name:'SWITCH SODOLA 8-PUERTOS 2.5G CON 10G'},
+  {sku:'4001019', name:'TV ANTIGUAO ROJO'},
+  {sku:'1002020', name:'USW FLEX'},
+  {sku:'5013016', name:'TUERCA VARILLA 1/2"'},
+  {sku:'5007054', name:'UNION IMC ROSCADA DE 3"'},
+  {sku:'5013011', name:'TORNILLOS RADIO SIKLU'},
+  {sku:'5006025', name:'TOMA HEMBRA CON POLO A TIERRA'},
+  {sku:'5015062', name:'TORNILLO 4X16 ORBIT'},
+  {sku:'5013012', name:'TUERCA DE 1/2'},
+  {sku:'5015049', name:'TARJETA NFC DE PROXIMIDAD'},
+  {sku:'1002008', name:'SWITCH 5 -PORT GIGABIT MODELO TL-SG105'},
+  {sku:'3003034', name:'TABLERO BLANCO ACRILICO 120X200'},
+  {sku:'1006006', name:'TRANSCEIVER SFP-10GLRM-31 (M)'},
+  {sku:'3004014', name:'TORTA CUMPLEAÑOS SOMOS'},
+  {sku:'1002016', name:'SWITCH S4148'},
+  {sku:'5013007', name:'TORNILLO CON CHAZO EXPANSIVO 5/16"*2"'},
+  {sku:'3003037', name:'TONER HP W1103A DUAL'},
+  {sku:'3006072', name:'TENIS NEGROS/BLANCOS SOMOS'},
+  {sku:'1002036', name:'REDES_DM48XS+6CX+FAN'},
+  {sku:'1002015', name:'SWITCH ROUTERBOARD RB260 GSP'},
+  {sku:'1006009', name:'TRANSCEPTOR SFCNASMTG10KMDU, Sm 10g Lc 10km (VCP)'},
+  {sku:'1005006', name:'UPS TRIPP LITE PDUMH20AT'},
+  {sku:'5004010', name:'TUBO MONTAJE SIKLU'},
+  {sku:'5006020', name:'TAPA DE TOMACORRIENTE'},
+  {sku:'1002012', name:'SWITCH 8-PORT GIGABIT TP-LINK MODELO TL-SG108E'},
+  {sku:'7002011', name:'TERMO PLASTICO SQUANIX 820ml'},
+  {sku:'5004014', name:'TUBO PVC SCH40 1"'},
+  {sku:'1006010', name:'TRANSCEPTOR SFCNASMTG20KMDU, Sm 1.25g Lc 20km (VCP)'},
+  {sku:'3003036', name:'TONER HP W1103A'},
+  {sku:'7001020', name:'VALLA INFLABLE'},
+  {sku:'3006079', name:'GORRAS GRIS'},
+  {sku:'2002005', name:'VIDEOPORTERO'},
+  {sku:'3003040', name:'TAPETE DE DISEÑO VERDE'},
+  {sku:'7001022', name:'VOLANTES BELLO INFOBOOTH'},
+  {sku:'7001023', name:'VOLANTES PARA ESCRIBIR'},
+  {sku:'3005053', name:'VOLTIMETRO 7-SEGMENTOS AZULE'},
+  {sku:'1001016', name:'WAVE-AP'},
+  {sku:'3006004', name:'BOTA DE CAUCHO CON  PUNTA TALLA 38'},
+  {sku:'3001042', name:'ASIENTO DE SANITARIO REDONDO'},
+  {sku:'4001022', name:'ASPIRADORA ASP-06. TRUPER'},
+  {sku:'1009004', name:'MEDIDOR LASER BOSCH'},
+  {sku:'5007041', name:'CONECTOR RECTO EMT 3/4"'},
+  {sku:'5011011', name:'GALON DE ACEITE DESENGRASANTA INSUTRAL'},
+  {sku:'3005055', name:'DOBLADOR TUBO 3/4"'},
+  {sku:'1005013', name:'CABLE Q28 TO Q28-100G-1M'},
+  {sku:'5007044', name:'TERMINAL EMT 3/4"'},
+  {sku:'5004016', name:'TUBO EMT DE 3/4"'},
+  {sku:'5004017', name:'TUBO IMC 1 1/2" GALVANIZADO'},
+  {sku:'5004018', name:'TUBO IMC GALVANIZADA 3/4"'},
+  {sku:'5007038', name:'ABRAZADERA DOBLE ALA 1 1/2"'},
+  {sku:'1001020', name:'ANTENA AF-5G30-S45'},
+  {sku:'1001024', name:'ANTENA UltraHorn UH-TP-5-24'},
+  {sku:'1004006', name:'ARUBA INSTANT LON 1930 24G 4SFP + 370 W'},
+  {sku:'3005056', name:'BINOCULARES'},
+  {sku:'5007042', name:'CONVERTIDOR EMT A CORAZA 3/4" (AZUL)'},
+  {sku:'3003043', name:'SEPARADORES DE ARCHIVO'},
+  {sku:'3004016', name:'INSTACREM'},
+  {sku:'5004015', name:'VARILLA ROSCADA 1/2'},
+  {sku:'2001003', name:'COMPUTADORES AVERIADOS'},
+  {sku:'3004015', name:'CANELA'},
+  {sku:'1005009', name:'CABLE 100G Q28 TO 4XSFP28 2M'},
+  {sku:'2003002', name:'IMPRESORA DYMO CODIGOS DE BARRA'},
+  {sku:'5007043', name:'CURVAS  3/4"'},
+  {sku:'1006033', name:'TRANSCEIVER  LQ-LW100-L24C'},
+  {sku:'2003003', name:'IMPRESORA HP LASERJET 1320'},
+  {sku:'1003030', name:'CLOUD ROUTER SWITCH CRS309-1G-8S+IN - REDES'},
+  {sku:'1004023', name:'DM4770 32CX C/FAN C/ MPLS'},
+  {sku:'2003005', name:'MAQUINA PARA CARNET IDP + KIT DE IMPRESION'},
+  {sku:'5004019', name:'TUBO PVC 3/4'},
+  {sku:'1009005', name:'MOTOTOOL'},
+  {sku:'1002022', name:'CANAKIT 8G'},
+  {sku:'1002025', name:'MULTIPLICADOR SPLITTER 1X4'},
+  {sku:'3002010', name:'TIRAS DE LUCES LED PARA ORBIT'},
+  {sku:'1009003', name:'LIJADORA DE PALMA'},
+  {sku:'3003041', name:'CAJA DISCO DURO MSATA SSD/SATA 500GB'},
+  {sku:'3006073', name:'BONO DE DOTACION 65.700'},
+  {sku:'5011010', name:'VARSOL SIN OLOR'},
+  {sku:'1003026', name:'REDES_CLOUD CORE ROUTER CCR1036-8G-2S+EM'},
+  {sku:'1001023', name:'ANTENA SIKLU 2 ft'},
+  {sku:'5007037', name:'ABRAZADERA DE 1 OJO DE 3/4'},
+  {sku:'7002014', name:'VELAS STICKER SOMOS'},
+  {sku:'1006041', name:'CABLE 100G Q28 TO 4XSFP28 3M'},
+  {sku:'7001021', name:'VOLANTES'},
+  {sku:'1001021', name:'SOPORTE_REDES_ANTENA AIRFIBER60-LR-US'},
+  {sku:'2002004', name:'VIDEO BALUN TRADICIONAL CCTV 720/1080'},
+  {sku:'5009011', name:'BIMETALICO'},
+  {sku:'1005014', name:'CABLE QSFP-40G-1M'},
+  {sku:'1001017', name:'WAVE-LR'},
+  {sku:'1001018', name:'WAVE-NANO'},
+  {sku:'1001025', name:'NANOSTATION AC NS-5AC'},
+  {sku:'1001019', name:'ANTENA 5GHZ POWERBEAM AC GEN2'},
+  {sku:'2002007', name:'CELULAR MOTOROLA G20. CON CARGADOR'},
+  {sku:'1001022', name:'SOPORTE_REDES_ANTENA LHG60'},
+  {sku:'3003038', name:'ARO DE LUZ'},
+  {sku:'3006075', name:'CAMISAS DE MERCH. TALLA L. LOGO ESPALDA'},
+  {sku:'1005019', name:'REDES_FUENTE PSU 400 AC-B'},
+  {sku:'3006074', name:'CAMISAS DE MERCH. TALLA L. LOGO ADELANTE'},
+  {sku:'2001005', name:'MONITOR 27" DE RENTA'},
+  {sku:'1004009', name:'PoE Injector 60W REDES'},
+  {sku:'2003006', name:'PISTOLA LASER CODIGO DE BARRAS'},
+  {sku:'1001026', name:'RADIO MLTG-CN'},
+  {sku:'1001027', name:'SOPORTE_REDES_RADIO SIKLU TX-H'},
+  {sku:'1001028', name:'SOPORTE_REDES_RADIO SIKLU TX-L'},
+  {sku:'5006033', name:'PLAFON E27'},
+  {sku:'1001029', name:'TV Sticks a validar'},
+  {sku:'1006042', name:'CABLE DELL QSFP-40G-3.0M'},
+  {sku:'2002008', name:'MICRÓFONO BOYA CELULAR'},
+  {sku:'5015228', name:'ADHESIVO EPÓXICO PROFESIONAL 98 GR EPOXIMIL'},
+  {sku:'5006029', name:'AIDEEPEN'},
+  {sku:'7002015', name:'BALANZA COCINA'},
+  {sku:'5012013', name:'BASE PASTEL'},
+  {sku:'7001025', name:'BOLSAS PUBLICIDAD'},
+  {sku:'5001027', name:'GJXH(H) 2 CORES'},
+  {sku:'5008084', name:'CABLE ÓPTICO ACTIVO 5 MT BREAKOUT PERSONALIZADO 400G QSFP-DD A 2×200G QSFP56'},
+  {sku:'2004007', name:'VIDEO BEAM EPSON HOME CINEMA 800'},
+  {sku:'3006080', name:'BUSO CON CAPOTA NEGRO TALLA XXXL'},
+  {sku:'3003051', name:'CARTUCHO TINTA HP 667 COLOR'},
+  {sku:'7002016', name:'DISPENSADOR DE AGUA ELECTRONICO'},
+  {sku:'4001026', name:'ESPEJO RECTO PULIDO'},
+  {sku:'3005064', name:'ESPONJILLA PARA LIJADURA DE PALMA'},
+  {sku:'7001026', name:'IMANES SOMOS'},
+  {sku:'5006032', name:'LIITOKALA CARGADOR BATERIA PANTALLA LCD'},
+  {sku:'3001044', name:'PAPELERA BLANCA/NEGRA CON PEDAL'},
+  {sku:'7004020', name:'PRETAL'},
+  {sku:'5015052', name:'BROCA CONCRETO EN CRUZ DE 1/2 PERCUTOR'},
+  {sku:'1009006', name:'NIVEL LASER BOSCH'},
+  {sku:'5012015', name:'PARAL BASE'},
+  {sku:'5015051', name:'BROCHA DE  4¨ (CERDA NEGRA)'},
+  {sku:'5012016', name:'SIKAFILL POWER 12 GR'},
+  {sku:'5012017', name:'SOLDADURA 60/40 1MM 100G'},
+  {sku:'5015059', name:'SET DE BROCAS'},
+  {sku:'5015060', name:'TERMOENCOGIBLE NEGRO 7mm'},
+  {sku:'1006016', name:'NOC INGENIERIA TRANSCEIVERS 10GTEK DE 20KM'},
+  {sku:'5012019', name:'AIDEEPEN SOLDADOR'},
+  {sku:'5015056', name:'ESFERAS DE PLASTICO ORB'},
+  {sku:'3003042', name:'OPALINA PAQX 50 TAMAÑO CARTA'},
+  {sku:'1008005', name:'REDES_SOPORTE_OTDR'},
+  {sku:'5013017', name:'TORNILLO ESTR DRYWALL FRAMER BROCA'},
+  {sku:'1002031', name:'switchs a validar'},
+  {sku:'4001024', name:'CANASTAS ALMACENAJE 60cm x 40cm x 25 cm'},
+  {sku:'5006030', name:'cable vehicular #20 color rojo x metro'},
+  {sku:'5015063', name:'TUERCA HEXAGONAL 6PASOS 0.70 ORBIT'},
+  {sku:'5015064', name:'TORNILLO CILINDRICO 3X20 ORBIT'},
+  {sku:'2004008', name:'TECLADO INALAMBRICO'},
+  {sku:'5015054', name:'BROCA SDS PLUS METAL'},
+  {sku:'1003033', name:'RB1100AHx4'},
+  {sku:'3003044', name:'TINTA NEGRA PARA SELLOS'},
+  {sku:'5015057', name:'PESCA DE FIBRA 8'},
+  {sku:'1006015', name:'TRANSCEIVER SFP1G-LX-31 REDES'},
+  {sku:'1002030', name:'SOPORTE REDES NETPOWER LITE 7R CSS610-1Gi-7R-2S+OUT'},
+  {sku:'5015058', name:'PESCA DE FIBRA 96'},
+  {sku:'1005020', name:'REDES_FUENTE PSU 400 DC-F'},
+  {sku:'5002024', name:'MERMA CORAZA AMERICANA 1"'},
+  {sku:'2001012', name:'MONITOR LG 27 (Inactivo)'},
+  {sku:'1005016', name:'POE UBIQUITI POE12V-G. Version Pequeña'},
+  {sku:'1006013', name:'REDES TRANSCEIVERS QSFP-LR4-40G'},
+  {sku:'1003073', name:'PRUEBA_ORB AX3000 EN-PASSIVE'},
+  {sku:'7004021', name:'SILLA DE SUSPENCIÓN'},
+  {sku:'1005015', name:'POE UBIQUITI POE-24V-G. Negro'},
+  {sku:'3006013', name:'BOTAS 37 HOMBRE'},
+  {sku:'7001024', name:'ESPARRAGO 5/8"X22Cm 4T-4AP-4AR - GC'},
+  {sku:'3002002', name:'BATERIA AAA'},
+  {sku:'2004002', name:'MOUSE INALAMBRICO'},
+  {sku:'1005042', name:'DELL INTEL X710 DOBLE PUERTO 10 GB SFP+'},
+  {sku:'1001004', name:'ANTENA AirFIBER60-LR-US'},
+  {sku:'5015065', name:'TUERCA G2 M3 ORBIT'},
+  {sku:'5007017', name:'CONECTOR RECTO EMT 1/2"'},
+  {sku:'4001058', name:'BASCULA'},
+  {sku:'5015119', name:'ABRAZADERA DOS SALIDAS 180C'},
+  {sku:'5012022', name:'PINTURA IMPERMEABILIZABLE DE 1/4'},
+  {sku:'1008020', name:'Fusionadora 70s- Préstamo'},
+  {sku:'1003074', name:'PRUEBA_PHANTOM AX3000 EN-PASSIVE'},
+  {sku:'3005026', name:'LLAVE EXPANSIVA GRANDE 12"'},
+  {sku:'5015220', name:'SOPORTE FIBRA NETBOX 2'},
+  {sku:'1006012', name:'REDES TRANSCEIVER SFP-10GLR-31'},
+  {sku:'1004021', name:'MPLS LICENCIA DM4770 16CX'},
+  {sku:'1005018', name:'REDES_FUENTE PSU 125 AC'},
+  {sku:'5012023', name:'PINTURA BEIS DE 1/4'},
+  {sku:'1009047', name:'ATORNILLADOR 4.8V'},
+  {sku:'5012026', name:'PINTURA EN ACEITE COLOR TABACO DE 1/4'},
+  {sku:'1002076', name:'ADMINISTRABLE SWITCH PISO 1G'},
+  {sku:'5007014', name:'CONECTOR RECTO EMT 1"'},
+  {sku:'5006037', name:'CABLE ELECTRICO #12 ALAMBRE'},
+  {sku:'3006062', name:'JEAN AZUL REFLECTIVO TALLA 46'},
+  {sku:'4001023', name:'TV 40"'},
+  {sku:'1007002', name:'*DISP_Tv_TV BOX_ROKU_Completo'},
+  {sku:'5012024', name:'PINTURA SEÑALIZACIÓN AMARILLO DE 1/4'},
+  {sku:'3006089', name:'BONO GASOLINA DE 50.000'},
+  {sku:'5001016', name:'CAJA DE CABLE UTP CAT. 5 INTERIOR COLOR GRIS'},
+  {sku:'5004006', name:'Inactivo TUBO EMT DE 1/2'},
+  {sku:'7004025', name:'CONO RETRACTIL CON BOMBILLO Y REFELCTIVO DE  90CM'},
+  {sku:'2001002', name:'COMPUTADOR RENTA CORE I5'},
+  {sku:'3006091', name:'BUSO CON CAPOTA NEGRO TALLA S'},
+  {sku:'1005010', name:'CABLE DELL QSFP-40G-1.0M'},
+  {sku:'1003057', name:'ROUTER WIFI 6 RT-6500MZ'},
+  {sku:'2004029', name:'DELL 16GB DDR4 ECC RDIMM 2933MHZ'},
+  {sku:'6002006', name:'BOTA DE CAUCHO CON PUNTA TALLA 44'},
+  {sku:'5002003', name:'MERMA CABLE 3x14 ENCAUCHETADO'},
+  {sku:'2003007', name:'MAQUINA + KIT DE CARNET MALA'},
+  {sku:'5001002', name:'CABLE 2x16 ENCAUCHETADO'},
+  {sku:'6004017', name:'EXTINTOR PARA LIQUIDOS INFLAMABLES 20 libras(rojo)'},
+  {sku:'3006060', name:'JEAN AZUL REFLECTIVO TALLA 42'},
+  {sku:'3006227', name:'CHALECO NEGRO TALLA XXXXL'},
+  {sku:'4001059', name:'CARPA PAREDES TOLDO 3X3 COLOR AZUL'},
+  {sku:'1003036', name:'RG-RAP2260'},
+  {sku:'5005008', name:'CORAZA AMERICANA 3/4'},
+  {sku:'1002028', name:'REDES_ROUTERBOARD RB4011 SERIES'},
+  {sku:'5008069', name:'CONVERTIDOR DE MEDIOS DE FIBRA 1G'},
+  {sku:'2002013', name:'CARGADOR PARA CELULAR + CABLE'},
+  {sku:'5015199', name:'BASES ORB-2'},
+  {sku:'1006004', name:'TRANSCEIVER SFP-10G-1310NM-SM-10KM'},
+  {sku:'5008004', name:'CAJA DE EMPALME 8 PUERTO'},
+  {sku:'1005011', name:'CABLE DELL QSFP28-100G - 0.5M'},
+  {sku:'5012025', name:'PINTURA NARANJA DE 2.5 galón'},
+  {sku:'5006077', name:'TOMA DE INCRUSTAR L21-30'},
+  {sku:'3006065', name:'JEAN SIN REFLECTIVO TALLA 14'},
+  {sku:'3006094', name:'CAMIBUSO NEGRO ASESOR COMERCIAL  TALLA 4XL'},
+  {sku:'1006008', name:'TRANSCEIVER SFP1G-LX-31'},
+  {sku:'5006035', name:'CABLE VEHICULAR #24 NEGRO X METRO'},
+  {sku:'5005007', name:'CORAZA 3/4 PLASTICA'},
+  {sku:'7002017', name:'REFRACTARIAS 2.9L + UTENSILIO'},
+  {sku:'2004049', name:'CABLE USB C 100W X 5M'},
+  {sku:'7004024', name:'REPUESTO DE CAHUCHO PARA ESCALERA MULTIPROPOSITO'},
+  {sku:'2004047', name:'CÁMARA ULTRA HD 4K LOGITECH MEETUP CON ALTAVOCES Y MICRÓFONO'},
+  {sku:'5003005', name:'FIBRA 6 HILOS CON MENSAJERO'},
+  {sku:'3006034', name:'CAMISA INFOBOOTH BLANCA TALLA XL'},
+  {sku:'3006031', name:'CAMISA INFOBOOTH BLANCA TALLA L'},
+  {sku:'5005009', name:'CORAZA AMERICANA 1  1/4'},
+  {sku:'5014018', name:'REDES_MUXPONDER DUAL QSFP-DD 400G'},
+  {sku:'3006086', name:'CAMISA INFOBOOTH BLANCA TALLA XXL'},
+  {sku:'7002020', name:'VENTILADOR PORTATIL SOMOS'},
+  {sku:'3006038', name:'CAMISA POLO BORDADA SOMOS PRO T/S'},
+  {sku:'2002014', name:'CELULAR'},
+  {sku:'3005066', name:'CAUTIN DE 20W / 60W'},
+  {sku:'5014003', name:'REDES_PATCH CORD CAT 6A S/FTP AZUL 3MT'},
+  {sku:'5006036', name:'SOLDADURA 1MM 250GR'},
+  {sku:'5015068', name:'LIJA DE 240 GRANOS'},
+  {sku:'5015067', name:'JACK CAT 6 CON FACE PLATE SENCILLO'},
+  {sku:'5015066', name:'FACE PLATE SENCILLO inactivo'},
+  {sku:'1002003', name:'FLEX MINI'},
+  {sku:'1005039', name:'MINISFORUM  MS-01-S1390'},
+  {sku:'4001028', name:'TELEVISOR VIEJO ROJO'},
+  {sku:'1003028', name:'CLOUD CORE SERIES ROUTER CCR2004-1G-12S+2XS REDES'},
+  {sku:'1002040', name:'SOPORTE__REDES__ROUTERBOARD RB4011 SERIES'},
+  {sku:'3006036', name:'POLO NEGRA TALLA XXL'},
+  {sku:'5015203', name:'CARCASA INJECTOR 2.5'},
+  {sku:'6003002', name:'CARETA DE PROTECCIÓN'},
+  {sku:'1002032', name:'REDES_DM4380 12XS+3CX C/MPLS'},
+  {sku:'1002041', name:'TP LINK-MC220L'},
+  {sku:'3005068', name:'KIT PINZAS PRETUL 3 PIEZAS'},
+  {sku:'5001007', name:'CABLE PODER TREBOL 18A'},
+  {sku:'2001022', name:'COMPUTADORES USADOS DESPLIEGUE'},
+  {sku:'3006035', name:'CAMISA INFOBOOTH BLANCA TALLA XS'},
+  {sku:'2004015', name:'HDTV SPLITTER 1X4'},
+  {sku:'1002050', name:'EDGE SWITCH10X'},
+  {sku:'1002026', name:'SOPORTE_REDES_PUERTO CSS610-8P-2S+IN'},
+  {sku:'2004009', name:'MEMORIA DELL 64GB DDR4'},
+  {sku:'3003002', name:'BISTURI PARA OFICINA'},
+  {sku:'2004010', name:'DISCO DURO DELL 3.84TB 12GB'},
+  {sku:'2004048', name:'ANKER 332 USB-C HUB (5 EN 1) CON VISUALIZACIÓN HDMI 4K, 5GBPS - 2 PUERTOS DE DATOS USB-A DE 5GBPS'},
+  {sku:'3006043', name:'CORDON DE CARNET CARNET'},
+  {sku:'5008078', name:'ODF 48 HILOS CON ACCESORIOS (inactiva)'},
+  {sku:'3001022', name:'LIMPIAVIDRIOS 500ml'},
+  {sku:'5011009', name:'REMOVEDOR DE ADHESIVOS DE 3.8LT'},
+  {sku:'5015097', name:'SEPARADOR PLASTICO M/H M3X20 - ORB ( PRODUCCION )'},
+  {sku:'5007055', name:'UNION EMT 1"1/2"'},
+  {sku:'3006163', name:'RESPIRADOR CONTRA PARTICULAS CON VALVULA'},
+  {sku:'3005038', name:'PESCA ELECTRICA DE 30mts'},
+  {sku:'7002008', name:'PORTAS DE COMIDA SOMOS AZULES'},
+  {sku:'3003024', name:'PAPEL CONTAC'},
+  {sku:'3005023', name:'JUEGO DE RACHE'},
+  {sku:'2004012', name:'GAFAS REALIDAD VIRTUAL DJI'},
+  {sku:'3003039', name:'CINTA TRANSPARENTE MEDIANA'},
+  {sku:'5005006', name:'CORAZA PLASTICA 1/2"'},
+  {sku:'5014019', name:'REDES_MUX/DEMUX DWDM 150 GHz'},
+  {sku:'3006081', name:'JEAN SIN REFLECTIVO TALLA 40'},
+  {sku:'5006014', name:'MEDIDOR MONOFÁSICO'},
+  {sku:'3006082', name:'JEAN SIN REFLECTIVO TALLA 44'},
+  {sku:'3005020', name:'FIBER OPTIC STRIPPER 3 HOLE'},
+  {sku:'5006016', name:'REGLETA PARA OFINICA DE 4 PUESTOS'},
+  {sku:'5006004', name:'CAJA METALICA 10x10'},
+  {sku:'5015200', name:'ANILLO ORB-2'},
+  {sku:'5002002', name:'MERMA CABLE 2x16 ENCAUCHETADO'},
+  {sku:'1001030', name:'AF-5XHD'},
+  {sku:'5006019', name:'TABLERO MONOFASICO CUATRO PUERTOS'},
+  {sku:'7001007', name:'GAFA REALIDAD VIRTUAL'},
+  {sku:'7001013', name:'PENDON ROLLUP'},
+  {sku:'7001019', name:'TOTEM INFLABLE CON CARRITO PARA LLEVAR'},
+  {sku:'7001016', name:'STAND COUNTER PLASTICO'},
+  {sku:'3006010', name:'BOTA DE CAUCHO CON PUNTA TALLA 43'},
+  {sku:'7002021', name:'KIT DE ASEO DE ZAPATOS'},
+  {sku:'1005017', name:'REDES CONVERTIDOR ADAPTADOR USB - TIPO C 2.5G BPS'},
+  {sku:'1006025', name:'BOX CONFIGURACIÓN BiDI'},
+  {sku:'3006047', name:'GORRAS NEGRAS'},
+  {sku:'1008004', name:'POWER METER OPTICAL'},
+  {sku:'5012021', name:'PINTURA GRIS DE 1/4'},
+  {sku:'5002023', name:'MERMA VARILLA ROSCADA 1/2'},
+  {sku:'3001046', name:'TINER GALON'},
+  {sku:'7002004', name:'PAÑOLETAS PARA MASCOTA'},
+  {sku:'5008042', name:'CAJA DE EMPALME 12 PUERTOS'},
+  {sku:'3005088', name:'GATO ZORRA 2 TONELA'},
+  {sku:'5008040', name:'REDES_PATCH CORD LC/UPC-LC/UPC DE 3.0M DUPLEX MONOMODO AZUL - AZUL'},
+  {sku:'3006014', name:'BOTAS 38 HOMBRE'},
+  {sku:'5008036', name:'PIGTAIL LC/UPC DE 1M (AZUL) (inactivo)'},
+  {sku:'7001010', name:'PENDON 1X2MTS NAVEGA ILIMITADAMENTE FIBERWAVE'},
+  {sku:'3005015', name:'DESTORNILLADOR ESTRELLA PERILLERO 6"'},
+  {sku:'5011013', name:'VENENO PARA RATAS - SOBRE DE 50 GRAMOS'},
+  {sku:'3005115', name:'DESTORNILLADOR PALA PERILLERO 6"'},
+  {sku:'5015122', name:'ESPARRAGO 5/8X32Cm 4T-4AP-4AR - GC'},
+  {sku:'5015104', name:'FILAMENTO PETG BEIGE 1Kg'},
+  {sku:'5014020', name:'REDES_OPTICAL AMPLIFIER (EDFA/RAMAN)'},
+  {sku:'5004027', name:'CURVA PVC 1" 1/2"'},
+  {sku:'2003010', name:'Cerradura Inteligente'},
+  {sku:'3006201', name:'LATONERIA, PINTURA Y TAPIZADO PARA OC'},
+  {sku:'4001056', name:'PROTECTOR COLCHON'},
+  {sku:'7002022', name:'CAPA PARA LLUVIA DE BOLSILLO'},
+  {sku:'5014023', name:'REDES_OPTICAL MODULE QSFP28'},
+  {sku:'5006080', name:'ROLLO CABLE RIGIDO 14 VERDE'},
+  {sku:'7004036', name:'TULA TIPO MILITAR NEGRA CAMPING CON BORDADO'},
+  {sku:'1002102', name:'DELL NETWORKING E3248P-ON SWITCH'},
+  {sku:'3006113', name:'JOGGER TALLA 38'},
+  {sku:'5015076', name:'ESPIRAL DE 3/8" PLASICO PROTECTOR DE CABLES'},
+  {sku:'4001060', name:'JUEGO DE MESA Y SILLA PLEGABLE INFOBOOTH'},
+  {sku:'2002010', name:'MEMORIA MICRO SD 180G'},
+  {sku:'7004018', name:'Inactivo LINEA DE VIDA CON GANCHO X 30 MTS'},
+  {sku:'2004034', name:'CAPTURADORA VIDEO AUDIO STREAMING 4K 2K 1080P HDMI USB 3.0 60FPS'},
+  {sku:'3006137', name:'JOGGER TALLA 8'},
+  {sku:'3006128', name:'CAMISA INFOBOOTH S UNISEX'},
+  {sku:'2004026', name:'PLAY 4 + CONTROL USADO'},
+  {sku:'2001016', name:'COMPUTADOR RENTA MAC'},
+  {sku:'2002011', name:'CELULAR SAMSUNG A35/8GB/256/5G'},
+  {sku:'5003002', name:'FIBRA 24 HILOS mt'},
+  {sku:'5008032', name:'PATCH CORD LC/PC-LC/PC SM 9/125  DUPLEX 1.8MM LSZH 12MT'},
+  {sku:'3006132', name:'CAMISA SUPERVISOR M'},
+  {sku:'3006142', name:'PANTALÓN INFOBOOTH TALLA 32'},
+  {sku:'5015171', name:'GABINETE DE EXTERIORES PARA MONTAJES DE POSTE DE 19"'},
+  {sku:'5008059', name:'PRUEBA MUFA DE 96 HILOS'},
+  {sku:'2004035', name:'DISCO SÓLIDO SSD EXTERNO SANDISK EXTREME SDSSDE61-2T00-G25 2TB NEGRO'},
+  {sku:'5006046', name:'MEDIDOR DE VATIOS CON RETROILUMINACION'},
+  {sku:'5014022', name:'REDES_SUB-RACK 4U'},
+  {sku:'2003017', name:'IMPRESORA 3D (BAMBULABH2SCOMBOAMS)'},
+  {sku:'5008093', name:'CABLE ÓPTICO ACTIVO 3 M BREAKOUT PERSONALIZADO 400G QSFP-DD A 2×200G QSFP56'},
+  {sku:'3006228', name:'JEAN AZUL REFLECTIVO TALLA 48'},
+  {sku:'5006070', name:'BREAKER "BIPOLAR" DE 30A'},
+  {sku:'5006071', name:'BUSBAR DE NEUTRO'},
+  {sku:'2001013', name:'TARJETA GRÁFICA  - VCQ450NVS-X16-PB (inactivo)'},
+  {sku:'7002019', name:'TARJETA DE PRESENTACIÓN'},
+  {sku:'5015105', name:'FILAMENTO PETG NEGRO 1KG'},
+  {sku:'5008058', name:'PRUEBA MUFA DE 24 A 48 HILOS'},
+  {sku:'2003009', name:'PLACA DE CONSTRUCION 3 V3 SE/3'},
+  {sku:'3005095', name:'AVELLANADOR 1/2-PULG VÁSTAGO HEXAGONAL 1/4-PULG'},
+  {sku:'1002046', name:'SWITCH 5-PORT TENDA SG105'},
+  {sku:'5015172', name:'SONDA DE ACERO DE 30 METROS ANTI-IMPACTO'},
+  {sku:'1005025', name:'ADAPTADOR PARA VILOS 240V - 1A'},
+  {sku:'3005137', name:'MOTOBOMBA AUTOCEBANTE 1"X1" DE 3HP DE 4 TIEMPOS'},
+  {sku:'1005067', name:'LFP UPS 12V A 15V'},
+  {sku:'3006103', name:'BOTAS 34 HOMBRE'},
+  {sku:'1002103', name:'DELL NETWORKING S5232F-ON SWITCH'},
+  {sku:'3005128', name:'ANTELLANA'},
+  {sku:'5015130', name:'TEMPORIZADOR AJUSTABLE'},
+  {sku:'3005096', name:'SET 2 BROCAS HSS 9/64 PULGADAS'},
+  {sku:'1006024', name:'REDES_FS BOX V3, KIT DE HERRAMIENTAS'},
+  {sku:'5015077', name:'LIJA DE AGUA #600'},
+  {sku:'1009024', name:'CIRCUIT BREAKER FINDER'},
+  {sku:'3006044', name:'GAFAS NEGRAS'},
+  {sku:'1002023', name:'GIGAS CSS 610-8G-2S+IN'},
+  {sku:'5015131', name:'DIODO DE SUICHEO RAPIDO'},
+  {sku:'2002018', name:'CELULAR EQUIPO DE VIABILIDAD'},
+  {sku:'2004024', name:'ORB-1C00001'},
+  {sku:'3005059', name:'CINCEL'},
+  {sku:'1003060', name:'UAP U6-PRO'},
+  {sku:'5011006', name:'AEROSOL NEGRO'},
+  {sku:'5011016', name:'Botella de tiner 750Ml'},
+  {sku:'3004006', name:'CAFE INSTANTANEO D1'},
+  {sku:'4001011', name:'MESA RIMAX 4 PUESTOS'},
+  {sku:'1002104', name:'DELL NETWORKING Z9664F-ON SWITCH'},
+  {sku:'1009052', name:'ANCLAJE DIELECTRICO'},
+  {sku:'6004024', name:'Extintor de incendios AVD 9L con base y aviso'},
+  {sku:'6004023', name:'Extintor CO2 20lb con carretilla y aviso'},
+  {sku:'3004007', name:'CAFE LIOFILIZADO COMODATO'},
+  {sku:'5009006', name:'HELICOIDAL HERRAJE DE RETENCION SPAN 100 DE 11 MM 96 HILOS'},
+  {sku:'5015201', name:'ACOPLE ORB-2'},
+  {sku:'5008083', name:'MUFA 144 HILOS'},
+  {sku:'5015102', name:'JACK MODULAR RJ45 CAT6'},
+  {sku:'5015234', name:'LIMPIADOR DE AGUJAS DE ACERO INOXIDABLE DE 0.016 IN'},
+  {sku:'5011014', name:'AEROSOL BLANCO BRILLANTE'},
+  {sku:'5015202', name:'CARCASA INJECTOR'},
+  {sku:'5014024', name:'REDES_MUXPONDER DUAL 100G+ - TMD400G'},
+  {sku:'1009030', name:'ESCALERA PARA BODEGA 4-6 PASOS'},
+  {sku:'5015210', name:'ESCALERA PRFV TIPO AVION'},
+  {sku:'1003040', name:'XIAOMI ROUTER AX1500'},
+  {sku:'3006157', name:'CAMIBUSO GRIS/NEGRO TALLA XXXXL'},
+  {sku:'1004010', name:'SUPRESOR DE PICO'},
+  {sku:'5012028', name:'BANDEJA LEGRAND'},
+  {sku:'5014025', name:'REDES_FAN UNIT TMD400G-SD'},
+  {sku:'5007046', name:'UNION EMT 1 1/2"'},
+  {sku:'1005022', name:'CABLE HDMI 1.5 M'},
+  {sku:'1009012', name:'ESCALERA 16 PASOS FIBRA DE VIDRIO'},
+  {sku:'1008021', name:'KIT DE HERRAMIENTAS PARA FIBRA ÓPTICA'},
+  {sku:'5015213', name:'KIT PARA RESANE (llana y espátula)'},
+  {sku:'1005023', name:'CARGADOR MAC'},
+  {sku:'5007047', name:'CURVAS 1 1/2"'},
+  {sku:'5012029', name:'CONDULETA LB 1-1/2'},
+  {sku:'5006041', name:'ROLLO CABLE ELECTRICO #10 ALAMBRE'},
+  {sku:'1008007', name:'FUSIONADORA 68S FUJIKURA'},
+  {sku:'4001029', name:'CANASTAS ALMACENAJE 60cm x 40cm x 40cm'},
+  {sku:'1002043', name:'SOPORTE_ REDES_POE REVERSO SWITCHT 8 PUERTOS'},
+  {sku:'5005010', name:'CORAZA AMERICANA'},
+  {sku:'1008009', name:'OTDR VIAVI'},
+  {sku:'5012027', name:'MENSULA LEGRAND'},
+  {sku:'2004016', name:'GPS'},
+  {sku:'3006119', name:'CHAQUETA INSTALADOR XL'},
+  {sku:'1002044', name:'SOPORTE_REDES_CRS317-1G-16S+RM'},
+  {sku:'3006229', name:'CHAQUETA INSTALADOR XXXL'},
+  {sku:'3006133', name:'CAMISA SUPERVISOR L'},
+  {sku:'1002062', name:'REDES_DM4270 8XS+16VS+6CX'},
+  {sku:'3006160', name:'PANTALÓN INFOBOOTH TALLA 6'},
+  {sku:'3006158', name:'JEAN REFLECTIVO TALLA 10'},
+  {sku:'5008094', name:'CABLE ÓPTICO ACTIVO 5M BREAKOUT PERSONALIZADO 100G QSFP28 4×25G NRZ A 4×25G SFP28 NRZ'},
+  {sku:'3006109', name:'JOGGER TALLA 30'},
+  {sku:'3006104', name:'PANTALON CARGO / JEAN REFLECTIVO TALLA 12'},
+  {sku:'3006090', name:'KIT MOVILIDAD (RODILLERA Y CODERA) NUEVO'},
+  {sku:'5009008', name:'CORNETA HERRAJE DE SUSPENSION ADSS DE 9 A 11MM 12A 24 HILOS'},
+  {sku:'2004017', name:'CONVERTIDOR TIPO C A Rj45 BASE 1000'},
+  {sku:'5014026', name:'REDES_MISCELLANEOUS CARD- SUB-RACK 2U'},
+  {sku:'3005133', name:'PINZA EXTRACTORA DE ENFRENTADORES'},
+  {sku:'5007049', name:'CURVA PVC DE 3"'},
+  {sku:'1007009', name:'PRUEBA_PRO ANDROID TV 13.0 I96 Z8'},
+  {sku:'1002021', name:'CANAKIT 4G'},
+  {sku:'1009014', name:'METRO MODISTERIA'},
+  {sku:'2003011', name:'IMPRESORA MULTIFUNCIONAL PARA OC'},
+  {sku:'5008076', name:'ADAPTADOR OPTICO LC/UPC MONOMODO DOBLE'},
+  {sku:'3001047', name:'BALDE ESCURRIDOR DE TRAPERO'},
+  {sku:'5015207', name:'TERMINAL PISO 24 Hilos'},
+  {sku:'4001031', name:'CHOCOLATERA 2L COLOR VERDE HECHAER2'},
+  {sku:'5014027', name:'REDES_FAN UNIT - SUB-RACK 2U'},
+  {sku:'4001032', name:'SET 5 UTENSILIOS BAMDU'},
+  {sku:'4001033', name:'SET X6 VASOS VIDRIO 250 ML'},
+  {sku:'4001034', name:'SET DE GANCHO ECOLOGICO X 10 UNIDADES'},
+  {sku:'4001035', name:'TENDEDERO PARED 60 CM 15 KILOS ECO BLANCO'},
+  {sku:'4001036', name:'ESTUFA ELECTRICA 2 PUESTOS GRIS HE-003G'},
+  {sku:'4001037', name:'LAVADORA CARGA SUPERIOR DIGITAL 9KG SILVER LMA9020WGABO 120V'},
+  {sku:'4001038', name:'PEROL 16CM ANTIADHEREDICO TAPA DE VIDRIO ULTRA COLOR'},
+  {sku:'5015198', name:'ESTIBA DE MADERA 120X100 CM'},
+  {sku:'1009029', name:'LINEA DE VIDA DE 20 mt CON GANCHO'},
+  {sku:'5008071', name:'PATCH CORD LC(UPC)/LC(UPC) MONOMODO DUPLEX (CHAQUETA 2MM, LSZH, COLOR AZUL) 1 MTS'},
+  {sku:'7002018', name:'KIT PERGAMINO - ADMINISTRADORES'},
+  {sku:'3003052', name:'PERFORADORA (Papelería)'},
+  {sku:'5015071', name:'MP TAPA REG INVISIBLE'},
+  {sku:'4001039', name:'JUEGO SABANA SENCIL'},
+  {sku:'2001008', name:'Drone Dji Mavic Air 2 Con Cámara 8k Gris'},
+  {sku:'1005024', name:'UPS 3KVA MONOFASICA ON LINE'},
+  {sku:'4001070', name:'Placa "Este espacio está conectado con Somos Internet"'},
+  {sku:'4001040', name:'LIMPIAPISO MADERA'},
+  {sku:'4001030', name:'MICROONDA 20 lT PANEL DIGITAL RMD-B20'},
+  {sku:'4001042', name:'SETX2 SOPORTE DOBLE'},
+  {sku:'4001041', name:'CEPILLO PLANCHA'},
+  {sku:'4001043', name:'POCILLO PARA TE'},
+  {sku:'4001044', name:'MINIBAR 90 l ELECTRO'},
+  {sku:'5014004', name:'TARJETA DE RED PCI- 10G BASE -T'},
+  {sku:'5004021', name:'TUBO PVC 3" inactivo'},
+  {sku:'1004013', name:'REDES_SERVIDOR_R650'},
+  {sku:'1003065', name:'REDES_SX-7981R03 3000MBPS WIFI 6 WIRELESS ROUTER'},
+  {sku:'4001046', name:'SETx2 ALMOHADAS'},
+  {sku:'4001047', name:'TUBO RANURADO'},
+  {sku:'4001048', name:'EDREDON D/FAZ SENC'},
+  {sku:'4001050', name:'SETX4 CORTINA'},
+  {sku:'5004022', name:'TUBO PVC 3".'},
+  {sku:'4001051', name:'CUBIERTOS'},
+  {sku:'3001049', name:'CANECA PLASTICA DE 65L Gris'},
+  {sku:'5006043', name:'Toma Aérea 110V Amarillo'},
+  {sku:'5006044', name:'CLAVIJA 110V AMARILLA DE SALIDA'},
+  {sku:'3005070', name:'CABO FORRADO METAL'},
+  {sku:'3001053', name:'BOMBA ATOMIZADOR MANUAL'},
+  {sku:'4001045', name:'CAFETERA B+D 5TZS NE'},
+  {sku:'3005072', name:'MARTILLO CACHA DE MADERA'},
+  {sku:'2003008', name:'IMPRESORA CREALITY ENDER 3 V3 SE'},
+  {sku:'3005071', name:'MARTILLO METALICO (grande)'},
+  {sku:'2002009', name:'CAMARAS DE SEGURIDAD'},
+  {sku:'3001048', name:'REPUESTO GT AFLAS PLUS 26 CM'},
+  {sku:'2004019', name:'CONVERTIDOR TIPO C MULTIPUERTO'},
+  {sku:'4001049', name:'SILLA PLASTICA CON B'},
+  {sku:'5014028', name:'REDES_SUPERVISORY CARD HB'},
+  {sku:'5014029', name:'REDES_FAN UNIT - SUB-RACK 4U'},
+  {sku:'5014005', name:'POWER BANK 1S TIPO C MICROUSB V3.0 5V 2.4A 18650'},
+  {sku:'5008044', name:'CONECTOR DC HEMBRA'},
+  {sku:'3005084', name:'HOTEND E3DV6 1.75MM UNIVERSAL'},
+  {sku:'5003014', name:'FIBRA ARMADA 24 HILOS'},
+  {sku:'5015073', name:'CINTA MALLA FIBRA'},
+  {sku:'5010006', name:'GABINETE RACK 120 X 60 X 70 FONDO'},
+  {sku:'1003041', name:'ROUTER XIAOMI AX3200'},
+  {sku:'3005049', name:'RUEDA MEDIDOR DE DISTANCIA (1000MT) (Odómetro)'},
+  {sku:'5015099', name:'TORNILLO M3x10 AVELLANADO PQTE POR 3000 ORB ( PRODUCCION )'},
+  {sku:'5012031', name:'ESPATULA FLEXIBLE'},
+  {sku:'3005073', name:'AJUSTE DE PROFUNDIDA'},
+  {sku:'3005074', name:'TORNILLO PANEL DRYWA'},
+  {sku:'3005075', name:'VIGUETA 1-1/2 x 3/4p'},
+  {sku:'3005076', name:'PLACA DE YESO ST 1/2'},
+  {sku:'1003042', name:'ROKU ESPRESS HD'},
+  {sku:'5012032', name:'ESTUCO PLASTICO 1 GALON'},
+  {sku:'3005077', name:'BROCHA 4" (CERDA MONA)'},
+  {sku:'5012034', name:'BROCA DE LAMINA 1/4 NORMAL'},
+  {sku:'3005082', name:'DESOLDADOR EXTRACTOR DE SOLDADURA ESTAÑO TIPO LAPIZ'},
+  {sku:'3005078', name:'TORNILLO EST PTA'},
+  {sku:'5012030', name:'PINTURA 1 gl KOLOR (BLANCO)'},
+  {sku:'3005081', name:'TERCERA MANO CON LUPA 60MM Y SOPORTE PARA CAUTIN'},
+  {sku:'3006105', name:'TARJETA REGALO'},
+  {sku:'5014006', name:'CONVERTIDOR DC- DC- XL6009 ELEVADOR (SALIDA 3 A 35 VOLTIOS AJUSTABLE)'},
+  {sku:'5003012', name:'FIBRA'},
+  {sku:'5015074', name:'TAPA DE DRYWALL 30X30 / 40x40'},
+  {sku:'3005085', name:'CAJA DE EMPALME GRANDE DE 96 FIBRAS,  SELLO CALIENTE'},
+  {sku:'2004020', name:'MODULO UPS DE 2 BATERIAS 18650 USD TIPO C'},
+  {sku:'5006045', name:'TOMA EMPOTRABLE DE 30AMP'},
+  {sku:'3006039', name:'POLO NEGRA TALLA XL'},
+  {sku:'2001009', name:'MONITOR LG DE 30"'},
+  {sku:'2004022', name:'CONVERSOR DC/DC ELEVADOR-35V 3A'},
+  {sku:'2004021', name:'CONECTOR USB TIPO C PANEL CHASIS 2 OVALADO'},
+  {sku:'3005080', name:'KIT DE BOQUILLA PARA IMPRESORA 3D'},
+  {sku:'1006018', name:'REDES TRANSCEIVER 10GBASE-ER SFP+ 1310nm 40km'},
+  {sku:'3005079', name:'KIT DE ORIA JUEGOS DE DESTORNILLADORES DE PRESICION'},
+  {sku:'3005083', name:'CAUTÍN 40W MANGO PLASTICO SOLDADOR DE ESTAÑO ROJO -2'},
+  {sku:'3003049', name:'GANCHOS PARA LA GRAPADORA'},
+  {sku:'5015036', name:'LIJA DE 150 GRANOS'},
+  {sku:'3006096', name:'CHAQUETA REFLECTIVA SOMOS TALLA S'},
+  {sku:'1009075', name:'LLAVE BOCA FIJA #13'},
+  {sku:'5015078', name:'ESPIRAL DE 1" PLASICO PROTECTOR DE CABLES'},
+  {sku:'3005087', name:'TACO MADERA 30X12X12'},
+  {sku:'3003047', name:'TIJERA GRANDE de PAPELERIA'},
+  {sku:'5001017', name:'REDES_PATCH CORD UTP CONTRAINCENDIO'},
+  {sku:'3001050', name:'SET DE TAPETES'},
+  {sku:'5012006', name:'ELECTRODOS PARA SOLDADURA 60X13'},
+  {sku:'5014007', name:'POWER BANK DE 10000 MH'},
+  {sku:'3006078', name:'CAMISETA BIENVENIDA SOMOS TALLA XL'},
+  {sku:'3003048', name:'GRAPADORA PAPELERIA'},
+  {sku:'2001010', name:'COMPUTADOR DE RENTA SOMOS PRO'},
+  {sku:'3006029', name:'CAMIBUSO GRIS/NEGRO TALLA XXXL'},
+  {sku:'4001052', name:'IMPRESORA 3D FDM'},
+  {sku:'3006032', name:'CAMISA INFOBOOTH BLANCA TALLA M'},
+  {sku:'6004010', name:'TENSIOMETRO DIGITAL'},
+  {sku:'5007020', name:'CONVERTIDOR EMT A CORAZA 1/2" (AZUL)'},
+  {sku:'1003015', name:'CLOUD ROUTER SWITCH CRS328-24P-4S+RM'},
+  {sku:'5005004', name:'CORAZA AMERICANA 1/2"'},
+  {sku:'3005008', name:'CONVERTIDOR TIPO C A Rj45_ Base 100'},
+  {sku:'5003017', name:'FIBRA ARMADA 96 HILOS PARA_SOPORTE_RED'},
+  {sku:'3006033', name:'CAMISA INFOBOOTH BLANCA TALLA S'},
+  {sku:'6004011', name:'PULSOXIMETRO ADULTO'},
+  {sku:'3001051', name:'BALDE 8 LT GRIS'},
+  {sku:'1004014', name:'REDES_SERVIDOR_R640'},
+  {sku:'1004015', name:'REDES_SERVIDOR_R740XD'},
+  {sku:'1004012', name:'REDES_MEDIAKIND_SERVIDOR'},
+  {sku:'1009076', name:'BISTURÍ PLEGABLE 19MM'},
+  {sku:'1003053', name:'VILO 5 A CONFIGURAR/ABASTECER'},
+  {sku:'7004027', name:'BARBUQUEJOS PARA CASCO'},
+  {sku:'3005103', name:'CABLE MDP A HDMI 1.8 MTS'},
+  {sku:'1008006', name:'OTDR MINI'},
+  {sku:'1002024', name:'SOPORTE_REDES_ CSS 610-8G-2S+IN'},
+  {sku:'1005036', name:'CABLE HDMI 3.0 M'},
+  {sku:'1003019', name:'TP_LINK_DECO X55_AX3000'},
+  {sku:'1002067', name:'PHANTOM F2 WIFI 6 4P'},
+  {sku:'6002003', name:'BOTIQUIN VEHICULAR PEQUEÑO'},
+  {sku:'5015025', name:'Inactivo - CONECTOR RJ45'},
+  {sku:'1009033', name:'LEVANTADOR ELÉCTRICO DE VENTOSA AL VACÍO DE 8 "-600'},
+  {sku:'5003021', name:'FIBRA 24 HILOS superior a 1.000mt PARA_SOPORTE'},
+  {sku:'3006102', name:'JEAN SIN REFLECTIVO TALLA 36'},
+  {sku:'7004003', name:'ARNES EN H'},
+  {sku:'7004011', name:'inactivo ESLINGA DE POSICIONAMIENTO'},
+  {sku:'7004013', name:'Inactivo ESLINGA EN Y'},
+  {sku:'3004018', name:'SOPORTE BOTELLON DE AGUA'},
+  {sku:'5014010', name:'PATCH CORD OM3-DUPLEX-3.0MM LC/PC-LC/PC 1M'},
+  {sku:'5008060', name:'SANGRADORA SUBCONDUCTO DE FIBRA (PASTA)'},
+  {sku:'1003066', name:'REDES_SX-7981R159 WIFI 6 WIRELESS ROUTER (6 EXTERNAL ANTENNAS), POE OUT 48V, POWER ADAPTER DC 48V 1A'},
+  {sku:'1009031', name:'KIT DE 2 VENTOSAS DE VIDRIO 8 PULGADAS'},
+  {sku:'1003027', name:'CLOUD CORE ROUTER CCR1072-1G-8S+ REDES'},
+  {sku:'3005135', name:'Llave De Seguridad Coaxial'},
+  {sku:'5014008', name:'REDES_PATCH CORD SP6A-S10-04B GRIS, CAT 6A, SFTP, 3'},
+  {sku:'3003062', name:'MARCADOR GRAFICO PELIKAN BLANCO'},
+  {sku:'1008011', name:'CORTADORA DE FIBRA FC-500 CLEAVER'},
+  {sku:'5015101', name:'BROCA CONCRETO EN CRUZ 3/8 PERCUTOR'},
+  {sku:'5012038', name:'ESTUCO PLASTICO DE 1.5KG'},
+  {sku:'1007007', name:'DISP_Tv_TV BOX/STICK A CONFIGURAR'},
+  {sku:'3003053', name:'PLANILLERO ACRILICO'},
+  {sku:'5005011', name:'CORAZA AMERICANA 1 1/2'},
+  {sku:'1005035', name:'QSFP-100G-AOC3M COMPATIBLE 100G QSFP28 ACTIVE OPTICAL CABLE  LSZH'},
+  {sku:'5015086', name:'SOGA DE 15 mt'},
+  {sku:'3005104', name:'Manguera corrugada succión 3 pulgadas x4,5 metros'},
+  {sku:'1002042', name:'SOPORTE_REDES_SWITCH 8-PORT TENDA SG1008/1000'},
+  {sku:'7002024', name:'PLATOS PANDOS MELANINA'},
+  {sku:'1005028', name:'QSFP-100G-AOC7M Optical Cable 7m'},
+  {sku:'1005029', name:'QSFP-100G-CU5M Copper Twinax Cable 5m'},
+  {sku:'5008047', name:'PANEL DOF 96 HILOS CON ADAPTADORES'},
+  {sku:'1009001', name:'EQUIPO SOLDADOR'},
+  {sku:'5008085', name:'CABLE ÓPTICO ACTIVO 3MT BREAKOUT PERSONALIZADO 100G QSFP28 4×25G NRZ A 4×25G SFP28 NRZ'},
+  {sku:'1003058', name:'VILO 6 A CONFIGURAR/ABASTECER'},
+  {sku:'5009030', name:'HERRAJE DE RETENCION HELICÓIDAL 14MM A 14.9MM 144H SPAN 100'},
+  {sku:'2001001', name:'COMPUTADOR USADO ADMINISTRATIVO'},
+  {sku:'5014033', name:'REDES_MATERIALES DE INSTALACION'},
+  {sku:'3006108', name:'CONJUNTO IMPERMEABLE AMARILLO 2 PIEZAS'},
+  {sku:'7002023', name:'AGENDA NEGRA SOMOS'},
+  {sku:'7002025', name:'VASO CARTON 6 ONZ X 50 UND'},
+  {sku:'7004019', name:'MOSQUETON ACERO'},
+  {sku:'1002027', name:'SOPORTE_REDES - ROUTERBOARD RB750Gr3'},
+  {sku:'3004020', name:'MEZCLADOR MADERA ECOLOGICO X 1000'},
+  {sku:'3005107', name:'CADENA ESLABONADA GALVANIZADA 3/16 PULGADA X METRO'},
+  {sku:'1002055', name:'EDGE SWITCH 5XP'},
+  {sku:'1004019', name:'DM4770 16CX C/FAN C/ MPLS'},
+  {sku:'1003056', name:'BICHOS NEGROS WIFI 6'},
+  {sku:'1006014', name:'REDES TRANSCEIVERS QSFP28-LR4-100G'},
+  {sku:'1006001', name:'TRANSAIVER TL-SM331T SFP 1000Base-T SFP RJ-45'},
+  {sku:'1009048', name:'ESCALERA MULTIPROPOSITO INSTALACIONES'},
+  {sku:'5009014', name:'ZAPATA PARA ESCALERA 24 PASOS'},
+  {sku:'2001024', name:'RENTA COMPUTADOR DESPLIEGUE'},
+  {sku:'3004019', name:'BOTELLON DE AGUA'},
+  {sku:'5015079', name:'Inactivo - CONECTOR DE CABLE CAT 6 - RJ45'},
+  {sku:'5006081', name:'BREAKER "MONOPOLAR" DE 30A'},
+  {sku:'1002061', name:'REDES_SX-8373SW170 8 PORTS 2.5G SWITCH PASSIVE POE'},
+  {sku:'5015100', name:'TORNILLO M3X16 CABEZA PLANA (PAQ X 1000) ( PRODUCCION )'},
+  {sku:'3006053', name:'LLAVE DE CHIP'},
+  {sku:'3005098', name:'DESTORNILLADOR ESTRELLA 8"'},
+  {sku:'5015230', name:'TORNILLO LAMINA CAB. LENTEJA. PTA BROCA 8X1/2'},
+  {sku:'1002048', name:'POE OPPOSITIVE SWT 6+2 1000MB'},
+  {sku:'1009034', name:'ELEVADOR ELECTRICO GRABO'},
+  {sku:'1002049', name:'POE SWT 8+2 1000MB'},
+  {sku:'3006002', name:'BONO $100.000 COP'},
+  {sku:'1003049', name:'BICHOS 2 WIFI 6 SAMPLE NEGRO'},
+  {sku:'3005094', name:'TIJERA DE CORTE DE LAMINIA'},
+  {sku:'6004013', name:'CINTA REFLECTIVA (ROJA Y BLANCA)'},
+  {sku:'2004030', name:'NVIDIA MELLANOX MCX516A-CCAT CONNECTX®-5'},
+  {sku:'1004017', name:'REDES_LICENCIA MX SERIES 4X100GBE'},
+  {sku:'1006029', name:'BIDI_SFP LS-BL273310-10C DELL CODE (NEGRO)'},
+  {sku:'1009025', name:'BOBINA DE LANZAMIENTO SC/APC - LC/UPC MONOMODO'},
+  {sku:'1003048', name:'PANELA WIFI 6 SAMPLE BLANCO'},
+  {sku:'5015040', name:'PAQUETE BOLSA VILO CAL 1 TB *85'},
+  {sku:'1004016', name:'REDES_JUNIPER MX204 ROUTER, CHASSIS WITH FANS AND AC POWER SUPPLIES (NIB)'},
+  {sku:'1009032', name:'VIENTOS PARA ESCALERA'},
+  {sku:'5014034', name:'REDES_DWDM OPTICAL MODULE QSFP-DD 400G'},
+  {sku:'5014035', name:'REDES_INSTALACION SISTEMA DWDM'},
+  {sku:'3005027', name:'LLAVE EXPANSIVA PEQUEÑA'},
+  {sku:'5002011', name:'CHIPA FIBRA 48 HILOS (1 - 99mt)'},
+  {sku:'5008053', name:'PATCH CORD SC/UPC-LC/UPC SM SX G657A2 3MM YELLOW LSZH 2M AZUL - AZUL'},
+  {sku:'7004031', name:'MOSQUETON DIELECTRICO'},
+  {sku:'7004030', name:'DIELECTRICO'}
+];
+
+let selected = [];
+let filtered = [...DB];
+
+document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+document.getElementById('db-count').textContent = DB.length;
+setDataStatus('local', 'Datos locales (Supabase no configurado)');
+
+function filterItems() {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  filtered = q === '' ? [...DB] : DB.filter(m => m.sku.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
+  renderList();
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderList() {
+  const el = document.getElementById('mat-list');
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="no-results">Sin resultados para tu búsqueda</div>';
+    return;
+  }
+  el.innerHTML = filtered.map(m =>
+    '<div class="mat-item">' +
+    '<div class="mat-main" onclick="addItem(\'' + m.sku + '\')">' +
+    '<div><div class="sku">' + escapeHtml(m.sku) + '</div><div class="mname">' + escapeHtml(m.name) + '</div></div>' +
+    '<span class="add-btn">+</span>' +
+    '</div>' +
+    '<button class="mat-del-btn" title="Eliminar material" onclick="deleteMaterial(\'' + m.sku + '\', event)">🗑</button>' +
+    '</div>'
+  ).join('');
+}
+
+function addItem(sku) {
+  const mat = DB.find(m => m.sku === sku);
+  if (!mat) return;
+  const ex = selected.find(s => s.sku === sku);
+  if (ex) { ex.qty++; } else { selected.push({sku: mat.sku, name: mat.name, qty: 1}); }
+  renderTable();
+}
+
+function toggleAddMaterial(show) {
+  const form = document.getElementById('add-material-form');
+  const isOpen = form.style.display !== 'none';
+  const next = show !== undefined ? show : !isOpen;
+  form.style.display = next ? 'block' : 'none';
+  document.getElementById('add-material-hint').textContent = isSupabaseConfigured()
+    ? ''
+    : 'Supabase no está configurado: este material solo queda guardado mientras tengas la página abierta.';
+  if (next) {
+    document.getElementById('new-mat-sku').focus();
+  } else {
+    document.getElementById('new-mat-sku').value = '';
+    document.getElementById('new-mat-name').value = '';
+  }
+}
+
+async function saveNewMaterial() {
+  const sku = document.getElementById('new-mat-sku').value.trim();
+  const name = document.getElementById('new-mat-name').value.trim();
+  if (!sku || !name) { alert('Completa el SKU y el nombre del material.'); return; }
+  if (DB.some(m => m.sku === sku)) { alert('Ya existe un material con ese SKU.'); return; }
+
+  if (isSupabaseConfigured()) {
+    const { error } = await sb.from('materiales').insert({ sku, name });
+    if (error) { alert('No se pudo guardar en Supabase: ' + error.message); return; }
+  }
+
+  DB.push({ sku, name });
+  document.getElementById('db-count').textContent = DB.length;
+  filterItems();
+  toggleAddMaterial(false);
+}
+
+async function deleteMaterial(sku, event) {
+  if (event) event.stopPropagation();
+  if (!confirm('¿Eliminar este material del catálogo? Esto no afecta materiales ya agregados a la remisión actual.')) return;
+
+  if (isSupabaseConfigured()) {
+    const { error } = await sb.from('materiales').delete().eq('sku', sku);
+    if (error) { alert('No se pudo eliminar en Supabase: ' + error.message); return; }
+  }
+
+  DB = DB.filter(m => m.sku !== sku);
+  document.getElementById('db-count').textContent = DB.length;
+  filterItems();
+}
+
+function setQty(sku, val) {
+  const item = selected.find(s => s.sku === sku);
+  if (!item) return;
+  const n = parseInt(val, 10);
+  item.qty = (!isNaN(n) && n >= 1) ? n : 1;
+  renderTable();
+}
+
+function changeQty(sku, delta) {
+  const item = selected.find(s => s.sku === sku);
+  if (!item) return;
+  item.qty = Math.max(1, item.qty + delta);
+  renderTable();
+}
+
+function removeItem(sku) {
+  selected = selected.filter(s => s.sku !== sku);
+  renderTable();
+}
+
+function renderTable() {
+  const body = document.getElementById('items-body');
+  if (selected.length === 0) {
+    body.innerHTML = '<tr class="empty-row"><td colspan="4">← Selecciona materiales desde el panel izquierdo</td></tr>';
+    return;
+  }
+  body.innerHTML = selected.map(s =>
+    '<tr>' +
+    '<td class="sku">' + escapeHtml(s.sku) + '</td>' +
+    '<td>' + escapeHtml(s.name) + '</td>' +
+    '<td class="center"><div class="qty-ctrl">' +
+    '<button class="qty-btn" onclick="changeQty(\'' + s.sku + '\',-1)">−</button>' +
+    '<input class="qty-input" type="number" min="1" value="' + s.qty + '" onchange="setQty(\'' + s.sku + '\', this.value)">' +
+    '<button class="qty-btn" onclick="changeQty(\'' + s.sku + '\',1)">+</button>' +
+    '</div></td>' +
+    '<td class="center"><button class="del-btn" onclick="removeItem(\'' + s.sku + '\')">✕</button></td>' +
+    '</tr>'
+  ).join('');
+}
+
+function clearAll() {
+  if (selected.length > 0 && !confirm('¿Seguro que quieres limpiar toda la remisión? Esta acción no se puede deshacer.')) return;
+  selected = [];
+  renderTable();
+  ['sede-origen','sede-destino','obs','num-trans','alistado-por','despachado-por','recibido-por','cargo-recibo'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fecha').value = new Date().toISOString().split('T')[0];
+}
+
+function printRemision() {
+  // Se guarda en Supabase en paralelo (si está configurado); no se espera para no retrasar la impresión.
+  saveRemisionToHistory();
+  window.print();
+}
+
+async function saveRemisionToHistory() {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const remision = {
+      num_transaccion: document.getElementById('num-trans').value.trim() || null,
+      fecha: document.getElementById('fecha').value || null,
+      sede_origen: document.getElementById('sede-origen').value.trim() || null,
+      sede_destino: document.getElementById('sede-destino').value.trim() || null,
+      observaciones: document.getElementById('obs').value.trim() || null,
+      alistado_por: document.getElementById('alistado-por').value.trim() || null,
+      despachado_por: document.getElementById('despachado-por').value.trim() || null,
+      recibido_por: document.getElementById('recibido-por').value.trim() || null,
+      cargo_recibo: document.getElementById('cargo-recibo').value.trim() || null
+    };
+    const { data, error } = await sb.from('remisiones').insert(remision).select().single();
+    if (error) throw error;
+
+    if (selected.length > 0 && data) {
+      const items = selected.map(s => ({ remision_id: data.id, sku: s.sku, name: s.name, qty: s.qty }));
+      const { error: itemsError } = await sb.from('remision_items').insert(items);
+      if (itemsError) throw itemsError;
+    }
+  } catch (err) {
+    console.error('No se pudo guardar la remisión en el historial de Supabase:', err);
+  }
+}
+
+function loadLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('logo-img');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('logo-ph').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// Base de destinatarios / sedes ya usados en envíos anteriores (tomados de ROTULO.docx).
+// Los primeros 4 son sedes propias de Somos Networks; el resto son clientes/destinatarios frecuentes.
+let DESTINATARIOS = [
+  { empresa: 'Somos Networks Colombia SAS · CEDI Medellín (Guayabal)', contacto: '', telefono: '3045955688', direccion: 'Carrera 51B #12 Sur-72, Medellín - Guayabal' },
+  { empresa: 'Somos Networks Colombia SAS · Bogotá Alcázares', contacto: '', telefono: '3017949021', direccion: 'Carrera 28B #70-52, Barrio Alcázares, Bogotá' },
+  { empresa: 'Somos Networks Colombia SAS · Bogotá Montevideo', contacto: 'Cristian A. Guerrero / Joyner Javier Faria Rincón', telefono: '3043944987', direccion: 'Cra 68D #16-19, Barrio Montevideo, Bogotá' },
+  { empresa: 'Somos Networks Colombia SAS · Rionegro', contacto: 'Vanessa Wong', telefono: '316 3820816', direccion: 'Calle 25 Nº 55A-43, San Antonio de Pereira, Rionegro, Antioquia' },
+  { empresa: 'Somos Networks Colombia SAS · Bello', contacto: '', telefono: '', direccion: '' },
+  { empresa: 'La Cima Tecnológica SAS', contacto: '', telefono: '3003714657', direccion: 'Calle 14 #19-55, CC Puerto Rico, Local 208, Bogotá, Cundinamarca' },
+  { empresa: 'Eduard Tolosa', contacto: '', telefono: '3238866826', direccion: 'Calle 146 #15-22, Edif. Altavista, Apto 401, Bogotá' },
+  { empresa: 'ATK Colombia', contacto: '', telefono: '(601) 8966622', direccion: 'Cota - Cundinamarca, Aut. Medellín Km 35, Terminal Terrestre de Carga, Bodega 37' },
+  { empresa: 'Salomón Zarruk', contacto: '', telefono: '3187033333', direccion: 'Calle 87A #12-87, Apto 503, Cabrera, Bogotá' },
+  { empresa: 'Brandon Steven Sánchez Ramos', contacto: '', telefono: '3043619960', direccion: 'Cra 10 # Dg. 135-170, Parques de Bolívar 1, Casa 278, Barrio Villas de San Pablo, Barranquilla' },
+  { empresa: 'Fill 3D Colombia SAS', contacto: '', telefono: '3147458472', direccion: 'Cra 64A #5A-10, Barrio Pradera, Puente Aranda, Bogotá' },
+  { empresa: 'Atenea Telecomunicaciones SAS', contacto: 'Jhonny Andrés Morales', telefono: '', direccion: 'Carrera 9 #9-51, San Gil, Santander' },
+  { empresa: 'Atenea Telecomunicaciones', contacto: 'Manuel Pedraza', telefono: '3186065947', direccion: 'Km 2 vía San Gil - Charalá, San Gil, Santander' },
+  { empresa: 'Distrieléctricos Las 12 SAS', contacto: 'Oscar Sepúlveda', telefono: '3214320329', direccion: 'Carrera 12 #18-35, CC El Pasaje Eléctrico, Local 101, Bogotá' },
+  { empresa: 'Carolay Camacho', contacto: '', telefono: '3114993603', direccion: 'Calle 6 #22-29, Barrio Comuneros, Bucaramanga, Santander' },
+  { empresa: 'Intalnet Telecomunicaciones', contacto: '', telefono: '3104510038', direccion: 'Carrera 25 #23-74, Barrio La Pradera, Montería, Córdoba' },
+  { empresa: 'Hugo Rubio', contacto: '', telefono: '3336168355', direccion: 'Cl 45 #46-142, Barrio Abajo, Barranquilla' }
+];
+let filteredDestinatarios = [...DESTINATARIOS];
+
+function filterDestinatarios() {
+  const q = document.getElementById('dest-search').value.toLowerCase().trim();
+  filteredDestinatarios = q === '' ? [...DESTINATARIOS] : DESTINATARIOS.filter(d =>
+    d.empresa.toLowerCase().includes(q) || d.contacto.toLowerCase().includes(q) || d.direccion.toLowerCase().includes(q)
+  );
+  renderDestinatariosList();
+}
+
+function renderDestinatariosList() {
+  const el = document.getElementById('dest-list');
+  if (filteredDestinatarios.length === 0) {
+    el.innerHTML = '<div class="dest-empty">Sin resultados</div>';
+    return;
+  }
+  el.innerHTML = filteredDestinatarios.map(d => {
+    const idx = DESTINATARIOS.indexOf(d);
+    const addr = d.direccion || 'Sin dirección guardada';
+    return '<div class="dest-item">' +
+      '<div class="dest-main" onclick="selectDestinatario(' + idx + ')">' +
+      '<div class="dname">' + escapeHtml(d.empresa) + '</div>' +
+      '<div class="daddr">' + escapeHtml(addr) + '</div>' +
+      '</div>' +
+      '<button class="dest-del-btn" title="Eliminar destinatario" onclick="deleteDestinatario(' + idx + ', event)">🗑</button>' +
+      '</div>';
+  }).join('');
+}
+
+function selectDestinatario(idx) {
+  const d = DESTINATARIOS[idx];
+  if (!d) return;
+  document.getElementById('rot-direccion').value = d.direccion || '';
+  document.getElementById('rot-nombre-destino').value = d.empresa || '';
+  document.getElementById('rot-quien-recibe').value = d.contacto || d.telefono || '';
+}
+
+function toggleAddDestinatario(show) {
+  const form = document.getElementById('add-dest-form');
+  const isOpen = form.style.display !== 'none';
+  const next = show !== undefined ? show : !isOpen;
+  form.style.display = next ? 'block' : 'none';
+  document.getElementById('add-dest-hint').textContent = isSupabaseConfigured()
+    ? ''
+    : 'Supabase no está configurado: este destinatario solo queda guardado mientras tengas la página abierta.';
+  if (next) {
+    document.getElementById('new-dest-empresa').focus();
+  } else {
+    ['new-dest-empresa', 'new-dest-contacto', 'new-dest-telefono', 'new-dest-direccion'].forEach(id => document.getElementById(id).value = '');
+  }
+}
+
+async function saveNewDestinatario() {
+  const empresa = document.getElementById('new-dest-empresa').value.trim();
+  const contacto = document.getElementById('new-dest-contacto').value.trim();
+  const telefono = document.getElementById('new-dest-telefono').value.trim();
+  const direccion = document.getElementById('new-dest-direccion').value.trim();
+  if (!empresa) { alert('El nombre / empresa es obligatorio.'); return; }
+
+  if (isSupabaseConfigured()) {
+    const { error } = await sb.from('destinatarios').insert({ empresa, contacto, telefono, direccion });
+    if (error) { alert('No se pudo guardar en Supabase: ' + error.message); return; }
+  }
+
+  DESTINATARIOS.push({ empresa, contacto, telefono, direccion });
+  filterDestinatarios();
+  toggleAddDestinatario(false);
+}
+
+async function deleteDestinatario(idx, event) {
+  if (event) event.stopPropagation();
+  const d = DESTINATARIOS[idx];
+  if (!d) return;
+  if (!confirm('¿Eliminar "' + d.empresa + '" de los destinatarios guardados?')) return;
+
+  if (isSupabaseConfigured()) {
+    const { error } = await sb.from('destinatarios').delete().eq('empresa', d.empresa).eq('direccion', d.direccion);
+    if (error) { alert('No se pudo eliminar en Supabase: ' + error.message); return; }
+  }
+
+  DESTINATARIOS = DESTINATARIOS.filter((x, i) => i !== idx);
+  filterDestinatarios();
+}
+
+function openRotuloModal() {
+  // Sugerir destino y sede de origen ya escritos en la remisión, si existen
+  const destinoField = document.getElementById('rot-nombre-destino');
+  const sedeDestino = document.getElementById('sede-destino').value.trim();
+  if (!destinoField.value && sedeDestino) destinoField.value = sedeDestino;
+
+  const sedeEnviaField = document.getElementById('rot-sede-envia');
+  const sedeOrigen = document.getElementById('sede-origen').value.trim();
+  if (!sedeEnviaField.value && sedeOrigen) sedeEnviaField.value = sedeOrigen;
+
+  // Sugerir el contenido de la caja a partir de los materiales ya seleccionados en la remisión
+  const contenidoField = document.getElementById('rot-contenido');
+  if (!contenidoField.value && selected.length > 0) {
+    contenidoField.value = selected.map(s => s.name + ' (' + s.qty + ')').join(', ');
+  }
+
+  document.getElementById('dest-search').value = '';
+  filteredDestinatarios = [...DESTINATARIOS];
+  renderDestinatariosList();
+
+  document.getElementById('rotulo-overlay').classList.add('open');
+  document.getElementById('rot-cajas').focus();
+}
+
+function closeRotuloModal() {
+  document.getElementById('rotulo-overlay').classList.remove('open');
+}
+
+function buildRotuloHTML(data, autoPrint) {
+  if (autoPrint === undefined) autoPrint = true;
+  const logoImg = document.getElementById('logo-img');
+  const logoSrc = (logoImg && logoImg.style.display !== 'none') ? logoImg.src : '';
+  const barWidths = [2,1,3,1,2,3,1,1,2,3,1,2,1,3,2,1,1,3,2,1,2,3,1,1,2];
+  const barcodeHtml = barWidths.map(w => '<span style="height:' + (w * 3 + 3) + 'px"></span>').join('');
+
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">' +
+  '<title>Rótulo de envío</title><style>' +
+  '@page{size:150mm 100mm;margin:0;}' +
+  '*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+  'html,body{width:150mm;height:100mm;}' +
+  'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:#0f172a;padding:5mm;}' +
+  '.rotulo{width:100%;height:100%;border:1.5px solid #0f172a;border-radius:8px;overflow:hidden;display:flex;flex-direction:column;}' +
+  '.accent-bar{height:3.5mm;background:linear-gradient(90deg,#2563eb,#1d4ed8);flex:none;}' +
+  '.r-body{flex:1;padding:4.5mm 7mm 3.5mm;display:flex;flex-direction:column;min-height:0;}' +
+
+  '.r-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:7px;}' +
+  '.r-brand{display:flex;align-items:center;gap:8px;}' +
+  '.r-logo-box{height:10.5mm;width:23mm;border:1.5px solid #e2e8f0;border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;}' +
+  '.r-logo-box img{max-width:100%;max-height:100%;object-fit:contain;}' +
+  '.r-logo-box.placeholder{font-size:9px;font-weight:800;letter-spacing:.04em;color:#0f172a;text-align:center;}' +
+  '.r-titles h1{font-size:14px;font-weight:800;letter-spacing:-0.01em;color:#0f172a;}' +
+  '.r-titles p{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#2563eb;margin-top:1px;}' +
+
+  '.r-cajas-badge{flex:none;width:21mm;height:17mm;border:2px solid #0f172a;border-radius:7px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:#f8fafc;}' +
+  '.r-cajas-badge .n{font-size:24px;font-weight:800;line-height:1;color:#0f172a;word-break:break-word;}' +
+  '.r-cajas-badge .lbl{font-size:7px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-top:2px;}' +
+
+  '.r-divider{border-top:1px solid #e2e8f0;margin:0 0 8px;}' +
+
+  '.r-grid{display:grid;grid-template-columns:1.3fr 1fr;gap:0 16px;flex:1;min-height:0;}' +
+  '.r-col{display:flex;flex-direction:column;gap:7px;justify-content:space-between;}' +
+  '.r-col:first-child{border-right:1px solid #e2e8f0;padding-right:16px;}' +
+  '.r-label{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8;margin-bottom:2px;}' +
+  '.r-value{font-size:13px;font-weight:700;color:#0f172a;line-height:1.25;word-break:break-word;}' +
+  '.r-value.lg{font-size:14.5px;}' +
+
+  '.r-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:8px;border-top:1px dashed #cbd5e1;}' +
+  '.r-footer .txt{font-size:8px;color:#94a3b8;letter-spacing:.02em;}' +
+  '.barcode{display:flex;align-items:flex-end;gap:1.4px;height:9mm;}' +
+  '.barcode span{display:block;width:1.4px;background:#0f172a;}' +
+  '</style></head><body>' +
+  '<div class="rotulo">' +
+  '<div class="accent-bar"></div>' +
+  '<div class="r-body">' +
+
+  '<div class="r-header">' +
+  '<div class="r-brand">' +
+  (logoSrc
+    ? '<div class="r-logo-box"><img src="' + logoSrc + '"></div>'
+    : '<div class="r-logo-box placeholder">SOMOS<br>INTERNET</div>') +
+  '<div class="r-titles"><h1>Rótulo de envío</h1><p>Somos Internet</p></div>' +
+  '</div>' +
+  '<div class="r-cajas-badge"><div class="n">' + escapeHtml(data.cajas) + '</div><div class="lbl">Cajas</div></div>' +
+  '</div>' +
+
+  '<div class="r-divider"></div>' +
+
+  '<div class="r-grid">' +
+  '<div class="r-col">' +
+  '<div><div class="r-label">Dirección</div><div class="r-value lg">' + escapeHtml(data.direccion) + '</div></div>' +
+  '<div><div class="r-label">Nombre destino</div><div class="r-value lg">' + escapeHtml(data.nombreDestino) + '</div></div>' +
+  '<div><div class="r-label">Contenido de la caja</div><div class="r-value">' + escapeHtml(data.contenido) + '</div></div>' +
+  '</div>' +
+  '<div class="r-col">' +
+  '<div><div class="r-label">Sede que envía</div><div class="r-value">' + escapeHtml(data.sedeEnvia) + '</div></div>' +
+  '<div><div class="r-label">Quién envía</div><div class="r-value">' + escapeHtml(data.quienEnvia) + '</div></div>' +
+  '<div><div class="r-label">Quién recibe</div><div class="r-value">' + escapeHtml(data.quienRecibe) + '</div></div>' +
+  '</div>' +
+  '</div>' +
+
+  '<div class="r-footer"><span class="txt">Documento de despacho interno</span><div class="barcode">' + barcodeHtml + '</div></div>' +
+
+  '</div>' +
+  '</div>' +
+  (autoPrint ? '<script>window.onload=function(){window.print();};<\/script>' : '') +
+  '</body></html>';
+}
+
+function getRotuloData() {
+  return {
+    cajas: document.getElementById('rot-cajas').value.trim() || '—',
+    contenido: document.getElementById('rot-contenido').value.trim() || '—',
+    direccion: document.getElementById('rot-direccion').value.trim() || '—',
+    nombreDestino: document.getElementById('rot-nombre-destino').value.trim() || '—',
+    sedeEnvia: document.getElementById('rot-sede-envia').value.trim() || '—',
+    quienEnvia: document.getElementById('rot-quien-envia').value.trim() || '—',
+    quienRecibe: document.getElementById('rot-quien-recibe').value.trim() || '—'
+  };
+}
+
+function previewRotulo() {
+  const html = buildRotuloHTML(getRotuloData(), false);
+  const frame = document.getElementById('rotulo-preview-frame');
+  frame.srcdoc = html;
+  document.getElementById('rotulo-preview-overlay').classList.add('open');
+}
+
+function closeRotuloPreview() {
+  document.getElementById('rotulo-preview-overlay').classList.remove('open');
+}
+
+function generateRotulo() {
+  const data = getRotuloData();
+  const html = buildRotuloHTML(data, true);
+  const w = window.open('', '_blank', 'width=480,height=680');
+  if (!w) {
+    alert('Tu navegador bloqueó la ventana emergente. Permite ventanas emergentes para imprimir el rótulo.');
+    return;
+  }
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+  saveRotuloToHistory(data); // en paralelo, no bloquea la impresión
+  closeRotuloPreview();
+  closeRotuloModal();
+}
+
+async function saveRotuloToHistory(data) {
+  if (!isSupabaseConfigured()) return;
+  try {
+    const { error } = await sb.from('rotulos').insert({
+      cajas: data.cajas === '—' ? null : data.cajas,
+      contenido: data.contenido === '—' ? null : data.contenido,
+      direccion: data.direccion === '—' ? null : data.direccion,
+      nombre_destino: data.nombreDestino === '—' ? null : data.nombreDestino,
+      sede_envia: data.sedeEnvia === '—' ? null : data.sedeEnvia,
+      quien_envia: data.quienEnvia === '—' ? null : data.quienEnvia,
+      quien_recibe: data.quienRecibe === '—' ? null : data.quienRecibe
+    });
+    if (error) throw error;
+  } catch (err) {
+    console.error('No se pudo guardar el rótulo en el historial de Supabase:', err);
+  }
+}
+
+let historialTab = 'remisiones';
+let historialCache = { remisiones: null, rotulos: null };
+
+function openHistorial() {
+  document.getElementById('historial-overlay').classList.add('open');
+  loadHistorial();
+}
+
+function closeHistorial() {
+  document.getElementById('historial-overlay').classList.remove('open');
+}
+
+function switchHistorialTab(tab) {
+  historialTab = tab;
+  document.getElementById('tab-remisiones').classList.toggle('active', tab === 'remisiones');
+  document.getElementById('tab-rotulos').classList.toggle('active', tab === 'rotulos');
+  renderHistorial();
+}
+
+async function loadHistorial() {
+  const body = document.getElementById('historial-body');
+  if (!isSupabaseConfigured()) {
+    body.innerHTML = '<div class="historial-empty">El historial requiere conexión a Supabase.<br>Configura SUPABASE_URL y SUPABASE_ANON_KEY al inicio del código para activarlo.</div>';
+    return;
+  }
+  body.innerHTML = '<div class="historial-empty">Cargando…</div>';
+  try {
+    const [remRes, rotRes] = await Promise.all([
+      sb.from('remisiones').select('*, remision_items(*)').order('created_at', { ascending: false }).limit(50),
+      sb.from('rotulos').select('*').order('created_at', { ascending: false }).limit(50)
+    ]);
+    if (remRes.error) throw remRes.error;
+    if (rotRes.error) throw rotRes.error;
+    historialCache.remisiones = remRes.data || [];
+    historialCache.rotulos = rotRes.data || [];
+    renderHistorial();
+  } catch (err) {
+    console.error('Error cargando historial:', err);
+    body.innerHTML = '<div class="historial-empty">No se pudo cargar el historial: ' + escapeHtml(err.message || String(err)) + '</div>';
+  }
+}
+
+function renderHistorial() {
+  const body = document.getElementById('historial-body');
+  if (!historialCache.remisiones && !historialCache.rotulos) return;
+
+  if (historialTab === 'remisiones') {
+    const rows = historialCache.remisiones || [];
+    if (rows.length === 0) {
+      body.innerHTML = '<div class="historial-empty">Todavía no hay remisiones guardadas.</div>';
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      const items = (r.remision_items || []);
+      const itemsTxt = items.length > 0
+        ? items.map(i => escapeHtml(i.name) + ' (' + i.qty + ')').join(', ')
+        : 'Sin materiales registrados';
+      return '<div class="historial-card">' +
+        '<div class="historial-card-head">' +
+        '<span class="htitle">' + escapeHtml(r.sede_origen || '—') + ' → ' + escapeHtml(r.sede_destino || '—') + '</span>' +
+        '<span class="hdate">' + escapeHtml(r.fecha || '') + (r.num_transaccion ? ' · ' + escapeHtml(r.num_transaccion) : '') + '</span>' +
+        '</div>' +
+        '<div class="historial-card-body">' +
+        (r.recibido_por ? 'Recibido por: ' + escapeHtml(r.recibido_por) + '<br>' : '') +
+        (r.observaciones ? escapeHtml(r.observaciones) : '') +
+        '</div>' +
+        '<div class="historial-card-items">' + itemsTxt + '</div>' +
+        '</div>';
+    }).join('');
+  } else {
+    const rows = historialCache.rotulos || [];
+    if (rows.length === 0) {
+      body.innerHTML = '<div class="historial-empty">Todavía no hay rótulos guardados.</div>';
+      return;
+    }
+    body.innerHTML = rows.map(r => {
+      return '<div class="historial-card">' +
+        '<div class="historial-card-head">' +
+        '<span class="htitle">' + escapeHtml(r.nombre_destino || '—') + '</span>' +
+        '<span class="hdate">' + (r.created_at ? new Date(r.created_at).toLocaleString('es-CO') : '') + '</span>' +
+        '</div>' +
+        '<div class="historial-card-body">' +
+        escapeHtml(r.direccion || '—') + '<br>' +
+        'Cajas: ' + escapeHtml(r.cajas || '—') + ' · Sede que envía: ' + escapeHtml(r.sede_envia || '—') + '<br>' +
+        'Envía: ' + escapeHtml(r.quien_envia || '—') + ' · Recibe: ' + escapeHtml(r.quien_recibe || '—') +
+        '</div>' +
+        (r.contenido ? '<div class="historial-card-items">Contenido: ' + escapeHtml(r.contenido) + '</div>' : '') +
+        '</div>';
+    }).join('');
+  }
+}
+
+async function initData() {
+  renderList(); // pinta los datos locales primero para que no se vea vacío mientras carga
+
+  if (!isSupabaseConfigured()) {
+    setDataStatus('local', DB.length + ' materiales (datos locales del archivo)');
+    return;
+  }
+
+  setDataStatus('local', 'Conectando a Supabase…');
+
+  try {
+    const [matRes, destRes] = await Promise.all([
+      sb.from('materiales').select('sku,name').order('name'),
+      sb.from('destinatarios').select('empresa,contacto,telefono,direccion').order('empresa')
+    ]);
+
+    if (matRes.error) throw matRes.error;
+    if (destRes.error) throw destRes.error;
+
+    if (matRes.data && matRes.data.length > 0) {
+      DB = matRes.data;
+      filtered = [...DB];
+      document.getElementById('db-count').textContent = DB.length;
+      renderList();
+    }
+    if (destRes.data && destRes.data.length > 0) {
+      DESTINATARIOS = destRes.data.map(d => ({
+        empresa: d.empresa || '',
+        contacto: d.contacto || '',
+        telefono: d.telefono || '',
+        direccion: d.direccion || ''
+      }));
+      filteredDestinatarios = [...DESTINATARIOS];
+    }
+
+    setDataStatus('ok', 'Conectado a Supabase · ' + DB.length + ' materiales, ' + DESTINATARIOS.length + ' destinatarios');
+  } catch (err) {
+    console.error('Error cargando datos de Supabase, usando datos locales:', err);
+    setDataStatus('error', 'No se pudo conectar a Supabase — usando datos locales');
+  }
+}
+
+initData();
+</script>
+</body>
+</html>
