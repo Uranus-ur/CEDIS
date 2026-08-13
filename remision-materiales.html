@@ -620,8 +620,8 @@
 // pública "anon" (Project Settings > API). Mientras estos campos queden
 // como están, la app funciona igual que antes con los datos locales.
 // ============================================================
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://ifwtjxashfkdytuuqrlu.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_AjKlPDSBmwJ_zxVxL6RxEw_xJcyGQ-p';
 
 let sb = null;
 function isSupabaseConfigured() {
@@ -629,7 +629,7 @@ function isSupabaseConfigured() {
 }
 if (isSupabaseConfigured()) {
   try {
-    sb = window.supabase.createClient(https://ifwtjxashfkdytuuqrlu.supabase.co, sb_publishable_AjKlPDSBmwJ_zxVxL6RxEw_xJcyGQ-p);
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } catch (e) {
     console.error('No se pudo crear el cliente de Supabase:', e);
     sb = null;
