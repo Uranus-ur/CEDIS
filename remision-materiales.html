@@ -388,7 +388,6 @@
     table.items th { background: #111 !important; color: #fff !important; }
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 <div class="app">
@@ -625,15 +624,31 @@ const SUPABASE_ANON_KEY = 'sb_publishable_AjKlPDSBmwJ_zxVxL6RxEw_xJcyGQ-p';
 
 let sb = null;
 function isSupabaseConfigured() {
-  return !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+  return !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
-if (isSupabaseConfigured()) {
-  try {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch (e) {
-    console.error('No se pudo crear el cliente de Supabase:', e);
-    sb = null;
-  }
+
+// La librería de Supabase solo se descarga si de verdad hay credenciales
+// puestas arriba, y de forma asíncrona (nunca bloquea la carga de la página).
+// Así, si no la has configurado, la app no depende de internet para nada.
+function loadSupabaseLib(timeoutMs) {
+  return new Promise((resolve, reject) => {
+    if (window.supabase) { resolve(window.supabase); return; }
+    const timer = setTimeout(() => {
+      reject(new Error('Tiempo de espera agotado cargando la librería de Supabase.'));
+    }, timeoutMs);
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+    script.onload = () => { clearTimeout(timer); resolve(window.supabase); };
+    script.onerror = () => { clearTimeout(timer); reject(new Error('No se pudo cargar la librería de Supabase (revisa tu conexión a internet).')); };
+    document.head.appendChild(script);
+  });
+}
+
+async function ensureSupabaseClient() {
+  if (sb) return sb;
+  const lib = await loadSupabaseLib(8000);
+  sb = lib.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return sb;
 }
 
 function setDataStatus(mode, text) {
@@ -2910,8 +2925,14 @@ async function saveNewMaterial() {
   if (DB.some(m => m.sku === sku)) { alert('Ya existe un material con ese SKU.'); return; }
 
   if (isSupabaseConfigured()) {
-    const { error } = await sb.from('materiales').insert({ sku, name });
-    if (error) { alert('No se pudo guardar en Supabase: ' + error.message); return; }
+    try {
+      await ensureSupabaseClient();
+      const { error } = await sb.from('materiales').insert({ sku, name });
+      if (error) { alert('No se pudo guardar en Supabase: ' + error.message); return; }
+    } catch (e) {
+      alert('No se pudo conectar a Supabase: ' + e.message + ' — el material no se guardó allá, pero puedes seguir usándolo localmente.');
+      return;
+    }
   }
 
   DB.push({ sku, name });
@@ -2925,8 +2946,14 @@ async function deleteMaterial(sku, event) {
   if (!confirm('¿Eliminar este material del catálogo? Esto no afecta materiales ya agregados a la remisión actual.')) return;
 
   if (isSupabaseConfigured()) {
-    const { error } = await sb.from('materiales').delete().eq('sku', sku);
-    if (error) { alert('No se pudo eliminar en Supabase: ' + error.message); return; }
+    try {
+      await ensureSupabaseClient();
+      const { error } = await sb.from('materiales').delete().eq('sku', sku);
+      if (error) { alert('No se pudo eliminar en Supabase: ' + error.message); return; }
+    } catch (e) {
+      alert('No se pudo conectar a Supabase: ' + e.message);
+      return;
+    }
   }
 
   DB = DB.filter(m => m.sku !== sku);
@@ -2991,6 +3018,7 @@ function printRemision() {
 async function saveRemisionToHistory() {
   if (!isSupabaseConfigured()) return;
   try {
+    await ensureSupabaseClient();
     const remision = {
       num_transaccion: document.getElementById('num-trans').value.trim() || null,
       fecha: document.getElementById('fecha').value || null,
@@ -3109,8 +3137,14 @@ async function saveNewDestinatario() {
   if (!empresa) { alert('El nombre / empresa es obligatorio.'); return; }
 
   if (isSupabaseConfigured()) {
-    const { error } = await sb.from('destinatarios').insert({ empresa, contacto, telefono, direccion });
-    if (error) { alert('No se pudo guardar en Supabase: ' + error.message); return; }
+    try {
+      await ensureSupabaseClient();
+      const { error } = await sb.from('destinatarios').insert({ empresa, contacto, telefono, direccion });
+      if (error) { alert('No se pudo guardar en Supabase: ' + error.message); return; }
+    } catch (e) {
+      alert('No se pudo conectar a Supabase: ' + e.message + ' — el destinatario no se guardó allá, pero puedes seguir usándolo localmente.');
+      return;
+    }
   }
 
   DESTINATARIOS.push({ empresa, contacto, telefono, direccion });
@@ -3125,8 +3159,14 @@ async function deleteDestinatario(idx, event) {
   if (!confirm('¿Eliminar "' + d.empresa + '" de los destinatarios guardados?')) return;
 
   if (isSupabaseConfigured()) {
-    const { error } = await sb.from('destinatarios').delete().eq('empresa', d.empresa).eq('direccion', d.direccion);
-    if (error) { alert('No se pudo eliminar en Supabase: ' + error.message); return; }
+    try {
+      await ensureSupabaseClient();
+      const { error } = await sb.from('destinatarios').delete().eq('empresa', d.empresa).eq('direccion', d.direccion);
+      if (error) { alert('No se pudo eliminar en Supabase: ' + error.message); return; }
+    } catch (e) {
+      alert('No se pudo conectar a Supabase: ' + e.message);
+      return;
+    }
   }
 
   DESTINATARIOS = DESTINATARIOS.filter((x, i) => i !== idx);
@@ -3283,6 +3323,7 @@ function generateRotulo() {
 async function saveRotuloToHistory(data) {
   if (!isSupabaseConfigured()) return;
   try {
+    await ensureSupabaseClient();
     const { error } = await sb.from('rotulos').insert({
       cajas: data.cajas === '—' ? null : data.cajas,
       contenido: data.contenido === '—' ? null : data.contenido,
@@ -3325,6 +3366,7 @@ async function loadHistorial() {
   }
   body.innerHTML = '<div class="historial-empty">Cargando…</div>';
   try {
+    await ensureSupabaseClient();
     const [remRes, rotRes] = await Promise.all([
       sb.from('remisiones').select('*, remision_items(*)').order('created_at', { ascending: false }).limit(50),
       sb.from('rotulos').select('*').order('created_at', { ascending: false }).limit(50)
@@ -3401,6 +3443,7 @@ async function initData() {
   setDataStatus('local', 'Conectando a Supabase…');
 
   try {
+    await ensureSupabaseClient();
     const [matRes, destRes] = await Promise.all([
       sb.from('materiales').select('sku,name').order('name'),
       sb.from('destinatarios').select('empresa,contacto,telefono,direccion').order('empresa')
