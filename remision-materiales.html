@@ -3619,6 +3619,25 @@ function renderHistorial() {
   }
 }
 
+// Supabase (PostgREST) solo devuelve hasta 1000 filas por consulta por defecto,
+// sin importar cuántas pida. Si el catálogo tiene más de 1000 materiales, hay que
+// pedirlos por páginas con .range() hasta traerlos todos, o se quedan cortos en
+// silencio (sin error) — esto es justo lo que pasaba con los 2381 materiales.
+async function fetchAllRows(table, columns, orderCol) {
+  const pageSize = 1000;
+  let from = 0;
+  let all = [];
+  while (true) {
+    const { data, error } = await sb.from(table).select(columns).order(orderCol).range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all = all.concat(data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
 async function initData() {
   renderList(); // pinta los datos locales primero para que no se vea vacío mientras carga
 
@@ -3631,22 +3650,19 @@ async function initData() {
 
   try {
     await ensureSupabaseClient();
-    const [matRes, destRes] = await Promise.all([
-      sb.from('materiales').select('sku,name').order('name'),
-      sb.from('destinatarios').select('empresa,contacto,telefono,direccion').order('empresa')
+    const [matData, destData] = await Promise.all([
+      fetchAllRows('materiales', 'sku,name', 'name'),
+      fetchAllRows('destinatarios', 'empresa,contacto,telefono,direccion', 'empresa')
     ]);
 
-    if (matRes.error) throw matRes.error;
-    if (destRes.error) throw destRes.error;
-
-    if (matRes.data && matRes.data.length > 0) {
-      DB = matRes.data;
+    if (matData.length > 0) {
+      DB = matData;
       filtered = [...DB];
       document.getElementById('db-count').textContent = DB.length;
       renderList();
     }
-    if (destRes.data && destRes.data.length > 0) {
-      DESTINATARIOS = destRes.data.map(d => ({
+    if (destData.length > 0) {
+      DESTINATARIOS = destData.map(d => ({
         empresa: d.empresa || '',
         contacto: d.contacto || '',
         telefono: d.telefono || '',
