@@ -96,6 +96,11 @@
     border-radius: 8px; padding: 9px 18px; cursor: pointer; white-space: nowrap;
   }
   .btn-primary:hover { opacity: 0.9; }
+  .btn-secondary {
+    background: var(--panel-alt); border: 1px solid var(--border); color: var(--text); font-weight: 700; font-size: 13px;
+    border-radius: 8px; padding: 9px 18px; cursor: pointer; white-space: nowrap;
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
   .form-msg { font-size: 12px; min-height: 16px; margin-bottom: 8px; }
 
   .cargo-badge {
@@ -326,12 +331,29 @@
     <div class="card-title">🕰️ Horario de trabajo</div>
     <p class="hint">Cada persona puede tener un horario distinto para cada día de la semana (por ejemplo, entrar más tarde los sábados).</p>
 
-    <div class="form-row" style="margin-bottom:18px;">
+    <div class="form-row" style="justify-content: space-between;">
       <div class="form-field">
         <label for="selectorPersonaHorario">Editar horario semanal de:</label>
         <select id="selectorPersonaHorario"></select>
       </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" id="btnIntercambiarTurnos" title="Turno 1 (6AM-3/4PM, sin sábado) ⇄ Turno 2 (10/11AM-6PM, sábado 6AM-2PM), para todo el personal activo de esta sede">🔄 Intercambiar Turno 1 ⇄ Turno 2</button>
+      </div>
     </div>
+    <div class="form-msg" id="turnoMsg"></div>
+
+    <div style="border-top:1px dashed var(--border); margin:18px 0 16px;"></div>
+
+    <div class="card-title" style="font-size:12.5px;">🏭 Semana especial de inventario</div>
+    <p class="hint">Cuando toque trabajar el sábado por inventario, este botón reparte 42 horas entre lunes y sábado (7 horas por día) para todo el personal que normalmente descansa los sábados. El botón de abajo revierte el cambio.</p>
+    <div class="form-row">
+      <button type="button" class="btn-primary" id="btnActivarInventario">🏭 Activar semana de inventario (42h con sábado)</button>
+      <button type="button" class="btn-secondary" id="btnRevertirInventario">↩️ Quitar sábado / volver a lo normal</button>
+    </div>
+    <div class="form-msg" id="inventarioMsg"></div>
+
+    <div style="border-top:1px dashed var(--border); margin:4px 0 16px;"></div>
+
     <div id="horarioFormWrap"></div>
 
     <div class="form-row" style="margin-top:22px; margin-bottom:10px;">
@@ -433,6 +455,33 @@ for (let h = 6; h <= 19; h++) HORAS_OPCIONES.push(String(h).padStart(2, "0") + "
 // Columnas de la cuadrícula visual: franjas de 6 AM a 6 PM (13 franjas, cada una termina a la hora siguiente)
 const HORAS_GRID = HORAS_OPCIONES.slice(0, -1);
 const DIAS_SEMANA_HORARIO = ["", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]; // índice 1-6
+
+// Horario estándar de cada turno, día por día (índice 1=Lunes ... 6=Sábado). null = descansa ese día.
+// Se usa cuando alguien queda asignado a un turno (al agregarlo, al cambiarle el turno, o al
+// usar el botón de intercambio) para que, además de la etiqueta, le queden las horas reales.
+const ALMUERZO_POR_TURNO = {
+  "Turno 1": { inicio: "12:00", fin: "13:00" }, // mañana: almuerzo 12 PM - 1 PM
+  "Turno 2": { inicio: "13:00", fin: "14:00" }, // tarde: almuerzo 1 PM - 2 PM
+};
+const ALMUERZO_DEFECTO = ALMUERZO_POR_TURNO["Turno 1"];
+const PLANTILLA_TURNOS = {
+  "Turno 1": {
+    1: { entrada: "06:00", salida: "16:00" }, // Lunes
+    2: { entrada: "06:00", salida: "16:00" }, // Martes
+    3: { entrada: "06:00", salida: "15:00" }, // Miércoles
+    4: { entrada: "06:00", salida: "15:00" }, // Jueves
+    5: { entrada: "06:00", salida: "15:00" }, // Viernes
+    6: null,                                   // Sábado: descansa
+  },
+  "Turno 2": {
+    1: { entrada: "11:00", salida: "18:00" }, // Lunes
+    2: { entrada: "10:00", salida: "18:00" }, // Martes
+    3: { entrada: "10:00", salida: "18:00" }, // Miércoles
+    4: { entrada: "10:00", salida: "18:00" }, // Jueves
+    5: { entrada: "10:00", salida: "18:00" }, // Viernes
+    6: { entrada: "06:00", salida: "14:00" }, // Sábado
+  },
+};
 
 function horaLabel12(hhmm) {
   if (!hhmm) return "—";
@@ -656,6 +705,51 @@ async function cargarHorasDelMes() {
   });
 }
 
+// Aplica la plantilla de horas + almuerzo del turno indicado a una o varias personas.
+// Si el turno no trabaja algún día (ej. Turno 1 el sábado), borra ese registro para dejarlo
+// como "descansa". Actualiza horariosMap localmente y devuelve { error } si algo falla.
+async function aplicarPlantillaTurno(ids, turno) {
+  if (!ids || ids.length === 0) return { error: null };
+  const plantilla = PLANTILLA_TURNOS[turno];
+  if (!plantilla) return { error: null }; // "Sin turno": no forzamos horario
+  const almuerzo = ALMUERZO_POR_TURNO[turno] || ALMUERZO_DEFECTO;
+
+  const registros = [];
+  const idsParaBorrarSabado = [];
+  ids.forEach(id => {
+    for (let dia = 1; dia <= 6; dia++) {
+      const t = plantilla[dia];
+      if (!t) { idsParaBorrarSabado.push(id); continue; }
+      registros.push({
+        persona_id: id, dia_semana: dia,
+        hora_entrada: t.entrada, hora_salida: t.salida,
+        hora_almuerzo_inicio: almuerzo.inicio, hora_almuerzo_fin: almuerzo.fin,
+      });
+    }
+  });
+
+  if (registros.length > 0) {
+    const { data, error } = await sb
+      .from(TABLA_HORARIO)
+      .upsert(registros, { onConflict: "persona_id,dia_semana" })
+      .select();
+    if (error) return { error };
+    (data || []).forEach(h => { horariosMap[`${h.persona_id}_${h.dia_semana}`] = h; });
+  }
+
+  if (idsParaBorrarSabado.length > 0) {
+    const { error } = await sb
+      .from(TABLA_HORARIO)
+      .delete()
+      .eq("dia_semana", 6)
+      .in("persona_id", idsParaBorrarSabado);
+    if (error) return { error };
+    idsParaBorrarSabado.forEach(id => delete horariosMap[`${id}_6`]);
+  }
+
+  return { error: null };
+}
+
 async function agregarPersonal() {
   const inputNombre = document.getElementById("nuevoPersonalNombre");
   const selectCargo = document.getElementById("nuevoPersonalCargo");
@@ -677,9 +771,18 @@ async function agregarPersonal() {
     msgEl.innerHTML = `<span style="color:var(--bad)">No se pudo guardar: ${escapeHtml(error.message)}</span>`;
     return;
   }
-  if (data && data[0]) personas = [...personas, data[0]];
+  if (data && data[0]) {
+    personas = [...personas, data[0]];
+    const { error: errorHorario } = await aplicarPlantillaTurno([data[0].id], selectTurno.value);
+    if (errorHorario) {
+      msgEl.innerHTML = `<span style="color:var(--bad)">Persona agregada, pero no se pudo aplicar el horario estándar del turno: ${escapeHtml(errorHorario.message)}</span>`;
+      inputNombre.value = "";
+      renderAll();
+      return;
+    }
+  }
   inputNombre.value = "";
-  msgEl.innerHTML = `<span style="color:var(--good)">Persona agregada.</span>`;
+  msgEl.innerHTML = `<span style="color:var(--good)">Persona agregada con el horario estándar de su turno.</span>`;
   setTimeout(() => { msgEl.innerHTML = ""; }, 2500);
   renderAll();
 }
@@ -694,7 +797,15 @@ async function actualizarTurnoPersona(id, turno) {
     alert("No se pudo guardar el turno: " + error.message);
     renderPersonalList();
     renderResumen();
+    return;
   }
+  if (turno === "Turno 1" || turno === "Turno 2") {
+    const { error: errorHorario } = await aplicarPlantillaTurno([id], turno);
+    if (errorHorario) {
+      alert("El turno se guardó, pero no se pudo aplicar el horario estándar: " + errorHorario.message);
+    }
+  }
+  renderAll();
 }
 
 async function actualizarSedePersona(id, sede) {
@@ -1510,6 +1621,177 @@ function renderStatsYResumen() {
   renderResumen();
 }
 
+// ---------- Intercambio rápido de turnos (Turno 1 ⇄ Turno 2) ----------
+async function intercambiarTurnos() {
+  const msgEl = document.getElementById("turnoMsg");
+  const activos = personalActivoDeLaSede();
+  const cambios = activos
+    .filter(p => p.turno === "Turno 1" || p.turno === "Turno 2")
+    .map(p => ({ id: p.id, turnoNuevo: p.turno === "Turno 2" ? "Turno 1" : "Turno 2" }));
+
+  if (cambios.length === 0) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">No hay personal con Turno 1 o Turno 2 asignado en ${escapeHtml(sedeActual)}.</span>`;
+    setTimeout(() => { msgEl.innerHTML = ""; }, 3000);
+    return;
+  }
+
+  const confirmar = confirm(
+    `¿Intercambiar el turno de ${cambios.length} persona(s) activa(s) en ${sedeActual}?\n\nLos de Turno 1 pasarán a Turno 2 (con su horario 10/11 AM - 6 PM, sábado 6 AM - 2 PM), y los de Turno 2 pasarán a Turno 1 (6 AM - 3/4 PM, sin sábado). Se reemplaza el horario que tenían configurado.`
+  );
+  if (!confirmar) return;
+
+  msgEl.textContent = "Intercambiando turnos…";
+  const anterior = personas;
+  personas = personas.map(p => {
+    const cambio = cambios.find(c => c.id === p.id);
+    return cambio ? { ...p, turno: cambio.turnoNuevo } : p;
+  });
+  renderAll();
+
+  const resultados = await Promise.all(
+    cambios.map(c => sb.from(TABLA_PERSONAL).update({ turno: c.turnoNuevo }).eq("id", c.id))
+  );
+  const conError = resultados.find(r => r.error);
+  if (conError) {
+    personas = anterior;
+    msgEl.innerHTML = `<span style="color:var(--bad)">No se pudo completar el intercambio: ${escapeHtml(conError.error.message)}</span>`;
+    renderAll();
+    return;
+  }
+
+  // Además de la etiqueta, aplicamos la plantilla de horas + almuerzo del turno nuevo de cada uno.
+  const idsATurno1 = cambios.filter(c => c.turnoNuevo === "Turno 1").map(c => c.id);
+  const idsATurno2 = cambios.filter(c => c.turnoNuevo === "Turno 2").map(c => c.id);
+
+  const [resultado1, resultado2] = await Promise.all([
+    aplicarPlantillaTurno(idsATurno1, "Turno 1"),
+    aplicarPlantillaTurno(idsATurno2, "Turno 2"),
+  ]);
+  const errorHorario = resultado1.error || resultado2.error;
+  if (errorHorario) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">Los turnos se guardaron, pero no se pudo actualizar el horario: ${escapeHtml(errorHorario.message)}</span>`;
+    renderAll();
+    return;
+  }
+
+  renderAll();
+  msgEl.innerHTML = `<span style="color:var(--good)">✅ Turnos y horarios intercambiados para ${cambios.length} persona(s).</span>`;
+  setTimeout(() => { msgEl.innerHTML = ""; }, 3500);
+}
+
+// ---------- Semana especial de inventario (42h repartidas de lunes a sábado) ----------
+function entradaSeguraParaOchoHoras(entradaActual) {
+  const h = Number((entradaActual || "07:00").slice(0, 2));
+  // Si la entrada actual + 8 horas de jornada se saldría del rango de horas disponibles (hasta 7 PM),
+  // usamos 7:00 AM por defecto para que la jornada de 8h (7h trabajadas + 1h de almuerzo) siempre quepa.
+  return h <= 11 ? String(h).padStart(2, "0") + ":00" : "07:00";
+}
+
+async function activarSemanaInventario() {
+  const msgEl = document.getElementById("inventarioMsg");
+  const activos = personalActivoDeLaSede();
+  const candidatos = activos.filter(p => !personaTrabajaSabado(p));
+
+  if (candidatos.length === 0) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">No hay personal en ${escapeHtml(sedeActual)} que actualmente descanse los sábados (todos ya trabajan sábado).</span>`;
+    setTimeout(() => { msgEl.innerHTML = ""; }, 3500);
+    return;
+  }
+
+  const confirmar = confirm(
+    `Esto va a activar el sábado y ajustar el horario de lunes a sábado de ${candidatos.length} persona(s) para que sumen exactamente 42 horas semanales (7 horas trabajadas por día, con 1 hora de almuerzo). ¿Continuar?`
+  );
+  if (!confirmar) return;
+
+  msgEl.textContent = "Aplicando horario de inventario…";
+
+  const registros = [];
+  candidatos.forEach(p => {
+    const base = horariosMap[`${p.id}_1`] || { hora_entrada: "07:00" };
+    const entrada = entradaSeguraParaOchoHoras(base.hora_entrada);
+    const salida = String(Number(entrada.slice(0, 2)) + 8).padStart(2, "0") + ":00";
+    for (let dia = 1; dia <= 6; dia++) {
+      registros.push({
+        persona_id: p.id, dia_semana: dia,
+        hora_entrada: entrada, hora_salida: salida,
+        hora_almuerzo_inicio: "12:00", hora_almuerzo_fin: "13:00",
+      });
+    }
+  });
+
+  const { data, error } = await sb
+    .from(TABLA_HORARIO)
+    .upsert(registros, { onConflict: "persona_id,dia_semana" })
+    .select();
+
+  if (error) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">No se pudo aplicar el horario de inventario: ${escapeHtml(error.message)}</span>`;
+    return;
+  }
+  (data || []).forEach(h => { horariosMap[`${h.persona_id}_${h.dia_semana}`] = h; });
+  renderAll();
+  msgEl.innerHTML = `<span style="color:var(--good)">✅ Horario de inventario aplicado a ${candidatos.length} persona(s): 7h diarias, 42h con sábado incluido.</span>`;
+  setTimeout(() => { msgEl.innerHTML = ""; }, 4500);
+}
+
+async function revertirSemanaInventario() {
+  const msgEl = document.getElementById("inventarioMsg");
+  const activos = personalActivoDeLaSede();
+  const candidatos = activos.filter(p => !personaTrabajaSabado(p));
+
+  if (candidatos.length === 0) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">No hay nadie que revertir en ${escapeHtml(sedeActual)}.</span>`;
+    setTimeout(() => { msgEl.innerHTML = ""; }, 3000);
+    return;
+  }
+
+  const confirmar = confirm(
+    `Esto va a quitar el sábado y volver el horario de lunes a viernes al valor por defecto (7:00 AM - 4:00 PM) para ${candidatos.length} persona(s). ¿Continuar?`
+  );
+  if (!confirmar) return;
+
+  msgEl.textContent = "Restableciendo horario normal…";
+
+  const idsPersonas = candidatos.map(p => p.id);
+  const { error: errorBorrar } = await sb
+    .from(TABLA_HORARIO)
+    .delete()
+    .eq("dia_semana", 6)
+    .in("persona_id", idsPersonas);
+
+  if (errorBorrar) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">No se pudo quitar el sábado: ${escapeHtml(errorBorrar.message)}</span>`;
+    return;
+  }
+  idsPersonas.forEach(id => delete horariosMap[`${id}_6`]);
+
+  const registros = [];
+  candidatos.forEach(p => {
+    for (let dia = 1; dia <= 5; dia++) {
+      registros.push({
+        persona_id: p.id, dia_semana: dia,
+        hora_entrada: "07:00", hora_salida: "16:00",
+        hora_almuerzo_inicio: "12:00", hora_almuerzo_fin: "13:00",
+      });
+    }
+  });
+
+  const { data, error } = await sb
+    .from(TABLA_HORARIO)
+    .upsert(registros, { onConflict: "persona_id,dia_semana" })
+    .select();
+
+  if (error) {
+    msgEl.innerHTML = `<span style="color:var(--bad)">No se pudo restablecer el horario normal: ${escapeHtml(error.message)}</span>`;
+    renderAll();
+    return;
+  }
+  (data || []).forEach(h => { horariosMap[`${h.persona_id}_${h.dia_semana}`] = h; });
+  renderAll();
+  msgEl.innerHTML = `<span style="color:var(--good)">✅ Horario normal restablecido (Lunes a Viernes, sin sábado) para ${candidatos.length} persona(s).</span>`;
+  setTimeout(() => { msgEl.innerHTML = ""; }, 4500);
+}
+
 function renderAll() {
   renderMesLabel();
   renderSedeSelector();
@@ -1597,6 +1879,10 @@ document.getElementById("selectorDiaHorario").addEventListener("change", (e) => 
   diaHorarioSeleccionado = Number(e.target.value);
   renderHorarioGrid();
 });
+
+document.getElementById("btnIntercambiarTurnos").addEventListener("click", intercambiarTurnos);
+document.getElementById("btnActivarInventario").addEventListener("click", activarSemanaInventario);
+document.getElementById("btnRevertirInventario").addEventListener("click", revertirSemanaInventario);
 
 cargarTodo();
 </script>
