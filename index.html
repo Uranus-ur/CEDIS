@@ -4,35 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Indicadores Somos Internet (CEDIS)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #12161D;
-    --panel: #1B2129;
-    --panel-alt: #20272F;
-    --border: #2B3440;
-    --text: #E7EAEE;
-    --muted: #8B94A3;
-    --faint: #6B7280;
-    --accent: #FF7A3D;
-    --good: #2FD9A8;
-    --bad: #F0555A;
+    --bg: #0d0e12;
+    --panel: #17181e;
+    --panel-alt: #1d1f27;
+    --border: #23252d;
+    --text: #e8e9ee;
+    --muted: #8b90a0;
+    --faint: #6b7080;
+    --accent: #c6ff3d;
+    --good: #c6ff3d;
+    --bad: #e5484d;
     --devolucion: #B98CFF;
+    --f-h: 'Sora', 'Segoe UI', Arial, sans-serif;
+    --f-b: 'Inter', 'Segoe UI', Arial, sans-serif;
   }
   * { box-sizing: border-box; }
   body {
     margin: 0;
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    font-family: var(--f-b);
     min-height: 100vh;
   }
+  body::before { content: ""; display: block; height: 4px; background: var(--accent); }
   .wrap { max-width: 900px; margin: 0 auto; padding: 56px 20px 60px; }
   .eyebrow {
     font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
     color: var(--accent); margin-bottom: 10px;
   }
   h1 {
-    font-family: "Oswald", "Segoe UI", sans-serif;
+    font-family: var(--f-h); letter-spacing: -0.01em;
     font-size: 30px; font-weight: 700; margin: 0 0 8px;
   }
   .subtitle { color: var(--muted); font-size: 14px; margin: 0 0 40px; max-width: 520px; }
@@ -50,18 +55,19 @@
     min-height: 168px;
     position: relative; overflow: hidden;
   }
-  .tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .tool-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 10px 30px -12px rgba(198,255,61,.25); }
   .tool-card.disabled { opacity: 0.55; cursor: default; }
   .tool-card.disabled:hover { border-color: var(--border); transform: none; }
 
-  .tool-icon { font-size: 22px; margin-bottom: 14px; }
-  .tool-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .tool-icon { font-size: 20px; margin-bottom: 14px; width: 42px; height: 42px; display: grid; place-items: center; background: var(--panel-alt); border: 1px solid var(--border); border-radius: 12px; transition: .15s; }
+  .tool-card:hover .tool-icon { background: var(--accent); border-color: var(--accent); }
+  .tool-title { font-family: var(--f-h); font-size: 15px; font-weight: 700; margin-bottom: 6px; }
   .tool-desc { font-size: 13px; color: var(--muted); line-height: 1.5; }
   .tool-tag {
     align-self: flex-start; margin-top: 14px; font-size: 11px; font-weight: 700;
     text-transform: uppercase; letter-spacing: 0.05em; padding: 4px 10px; border-radius: 999px;
   }
-  .tool-tag.active { background: rgba(47,217,168,0.12); color: var(--good); }
+  .tool-tag.active { background: rgba(198,255,61,0.12); color: var(--accent); }
   .tool-tag.soon { background: rgba(139,148,163,0.14); color: var(--muted); }
 
   .add-card {
@@ -139,6 +145,15 @@
         <div class="tool-icon">🚚</div>
         <div class="tool-title">Control de Recepción · Abastecimiento</div>
         <div class="tool-desc">Registro de órdenes que llegan, evidencia fotográfica y cantidad recibida por ítem, bitácora automática de trazabilidad, módulo de reportes e inconsistencias.</div>
+      </div>
+      <span class="tool-tag active">Disponible</span>
+    </a>
+
+    <a class="tool-card" href="remision_materiales_v2.html">
+      <div>
+        <div class="tool-icon">🧾</div>
+        <div class="tool-title">Remisión de Materiales y Rótulos</div>
+        <div class="tool-desc">Arma la remisión de despacho desde el catálogo, imprime el rótulo numerado por caja (Caja 1 de 5) y consulta el historial de envíos.</div>
       </div>
       <span class="tool-tag active">Disponible</span>
     </a>
