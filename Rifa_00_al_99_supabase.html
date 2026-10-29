@@ -1,0 +1,903 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Rifa 00 al 99</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: encabezado de boleta, franja de cifras, cuadrícula 10x10 de boletas con borde perforado, lista de participantes debajo. */
+:root {
+  --bg: #edf0f3;
+  --surface: #ffffff;
+  --ink: #14202b;
+  --muted: #5b6877;
+  --line: #c3ccd6;
+  --accent: #2b44d9;
+  --accent-ink: #ffffff;
+  --res-bg: #fff1c2;
+  --res-ink: #5a4300;
+  --res-line: #d9a900;
+  --paid-bg: #d4f1df;
+  --paid-ink: #0c4a27;
+  --paid-line: #2e9e5b;
+  --danger: #b3261e;
+  --font-display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1720;
+    --surface: #17222d;
+    --ink: #e6ecf2;
+    --muted: #93a1b1;
+    --line: #34444f;
+    --accent: #8fa2ff;
+    --accent-ink: #0f1720;
+    --res-bg: #3a3010;
+    --res-ink: #ffd866;
+    --res-line: #8a6c0b;
+    --paid-bg: #12392a;
+    --paid-ink: #7fe0a8;
+    --paid-line: #2e9e5b;
+    --danger: #ff8a80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1720;
+  --surface: #17222d;
+  --ink: #e6ecf2;
+  --muted: #93a1b1;
+  --line: #34444f;
+  --accent: #8fa2ff;
+  --accent-ink: #0f1720;
+  --res-bg: #3a3010;
+  --res-ink: #ffd866;
+  --res-line: #8a6c0b;
+  --paid-bg: #12392a;
+  --paid-ink: #7fe0a8;
+  --paid-line: #2e9e5b;
+  --danger: #ff8a80;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.45;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap {
+  max-width: 920px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Encabezado */
+.head { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: flex-end; justify-content: space-between; }
+.head-main { min-width: 0; flex: 1 1 320px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+h1 {
+  margin: 4px 0 6px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(2.4rem, 8vw, 4rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.meta { display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 14px; }
+.meta b { color: var(--ink); font-weight: 600; }
+.title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.title-row h1 { min-width: 0; }
+.price-tag { display: inline-flex; flex-direction: column; align-items: flex-start; border: 2px dashed var(--accent); border-radius: 10px; padding: 4px 12px 5px; color: var(--accent); }
+.price-tag span { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+.price-tag b { font-family: var(--font-display); font-weight: 800; font-size: 1.8rem; line-height: 1; font-variant-numeric: tabular-nums; }
+
+.btn {
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-weight: 500;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--danger); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Ajustes */
+.settings {
+  background: var(--surface);
+  border: 1.5px dashed var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px 16px;
+  align-items: end;
+}
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field label, .legend { font-size: 12px; font-family: var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.field input {
+  width: 100%;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.field input:focus-visible { outline-offset: 0; border-color: var(--accent); }
+.settings .actions { display: flex; gap: 8px; }
+
+/* Cifras */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 2px solid var(--ink);
+  border-bottom: 1.5px solid var(--line);
+}
+.stat { padding: 12px 14px 12px 0; min-width: 0; }
+.stat + .stat { padding-left: 14px; border-left: 1.5px solid var(--line); }
+.stat .k { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-family: var(--font-display); font-weight: 800; font-size: 2.2rem; line-height: 1.05; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat .s { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 620px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat:nth-child(3) { padding-left: 0; border-left: 0; }
+  .stat:nth-child(n+3) { border-top: 1.5px solid var(--line); }
+}
+
+/* Filtros */
+.tabs { display: flex; gap: 4px; border-bottom: 1.5px solid var(--line); }
+.tab { background: none; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1.5px; padding: 10px 16px; font-weight: 600; font-size: 15px; color: var(--muted); }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.tab .c { font-family: var(--font-mono); font-size: 12px; font-weight: 500; margin-left: 4px; font-variant-numeric: tabular-nums; }
+.tools { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 14px;
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+}
+.chip .c { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip[aria-pressed="true"] .c { color: var(--bg); opacity: 0.8; }
+.search { flex: 1 1 200px; max-width: 320px; min-width: 0; }
+.search input {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+.search input:focus-visible { outline-offset: 0; border-color: var(--accent); }
+
+.note { font-size: 13.5px; color: var(--muted); margin: 0; }
+.banner {
+  background: var(--res-bg);
+  color: var(--res-ink);
+  border: 1.5px solid var(--res-line);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+
+/* Cuadrícula */
+.grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+@media (min-width: 760px) { .grid { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 7px; } }
+.tile {
+  position: relative;
+  min-width: 0;
+  min-height: 76px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 7px 8px 8px;
+  text-align: left;
+  background: var(--surface);
+  border: 1.5px dashed var(--line);
+  border-radius: 8px;
+  transition: opacity 0.15s, border-color 0.15s, transform 0.1s;
+}
+.tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+.tile .n { font-family: var(--font-display); font-weight: 800; font-size: 1.9rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .who { width: 100%; font-size: 12px; line-height: 1.2; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-height: 1.2em; }
+.tile .mark { position: absolute; top: 6px; right: 6px; display: none; }
+.tile.res { background: var(--res-bg); border: 1.5px solid var(--res-line); color: var(--res-ink); }
+.tile.res .who { color: var(--res-ink); }
+.tile.paid { background: var(--paid-bg); border: 1.5px solid var(--paid-line); color: var(--paid-ink); }
+.tile.paid .who { color: var(--paid-ink); }
+.tile.res .mark, .tile.paid .mark { display: block; }
+.tile.dim { opacity: 0.22; }
+.tile.dim:hover { opacity: 0.6; }
+
+.legend-row { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--muted); }
+.legend-row span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--line); background: var(--surface); }
+.sw.free { border-style: dashed; }
+.sw.res { background: var(--res-bg); border-color: var(--res-line); }
+.sw.paid { background: var(--paid-bg); border-color: var(--paid-line); }
+
+/* Lista */
+.list-head { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; justify-content: space-between; }
+h2 { margin: 0; font-family: var(--font-display); font-weight: 800; font-size: 1.7rem; text-transform: uppercase; letter-spacing: 0.02em; }
+.table-box { overflow-x: auto; background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+th { text-align: left; font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 1.5px solid var(--line); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.num button { background: none; border: 0; padding: 0; font-family: var(--font-display); font-weight: 800; font-size: 1.4rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+td.nm { overflow-wrap: anywhere; }
+.pill { display: inline-block; border-radius: 999px; padding: 2px 10px; font-size: 12.5px; font-weight: 600; border: 1.5px solid var(--line); background: var(--surface); }
+.pill.res { background: var(--res-bg); color: var(--res-ink); border-color: var(--res-line); }
+.pill.paid { background: var(--paid-bg); color: var(--paid-ink); border-color: var(--paid-line); }
+.empty { padding: 22px 16px; color: var(--muted); text-align: center; }
+
+/* Diálogo */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: rgba(8, 14, 20, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: max(16px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sheet {
+  width: 100%;
+  max-width: 420px;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sheet-head { display: flex; align-items: center; gap: 12px; }
+.sheet-head .big { font-family: var(--font-display); font-weight: 800; font-size: 4rem; line-height: 0.9; font-variant-numeric: tabular-nums; }
+.sheet-head .grow { flex: 1; }
+.x { background: none; border: 0; font-size: 28px; line-height: 1; padding: 4px 8px; color: var(--muted); border-radius: 8px; }
+.x:hover { color: var(--ink); }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
+.seg label { position: relative; display: block; }
+.seg input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.seg span {
+  display: block;
+  text-align: center;
+  padding: 10px 6px;
+  border: 1.5px solid var(--line);
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+}
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.seg input:checked + span { font-weight: 600; }
+.seg .o-free input:checked + span { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.seg .o-res input:checked + span { background: var(--res-bg); border-color: var(--res-line); color: var(--res-ink); }
+.seg .o-paid input:checked + span { background: var(--paid-bg); border-color: var(--paid-line); color: var(--paid-ink); }
+.seg input:disabled { cursor: default; }
+.err { margin: 0; color: var(--danger); font-size: 14px; min-height: 0; }
+.sheet .actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.sheet .actions .grow { margin-right: auto; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 30;
+  max-width: calc(100% - 32px);
+  background: var(--ink);
+  color: var(--bg);
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
+}
+@media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
+</style>
+
+<main class="wrap">
+  <header class="head">
+    <div class="head-main">
+      <div class="eyebrow">Boletas 00 – 99</div>
+      <div class="title-row"><h1 id="title">Gran rifa decembrina de 5.000.000</h1><div class="price-tag" id="priceTag" hidden><span>Valor</span><b id="priceVal"></b></div></div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="head-actions">
+      <button class="btn" id="btnLogin" type="button" hidden>Acceso administrador</button>
+      <button class="btn" id="btnLogout" type="button" hidden>Cerrar sesión</button>
+      <button class="btn" id="btnSettings" type="button" hidden aria-expanded="false" aria-controls="settings">Ajustes de la rifa</button>
+    </div>
+  </header>
+
+  <form class="settings" id="settings" hidden>
+    <div class="field"><label for="cfgTitle">Nombre de la rifa</label><input id="cfgTitle" maxlength="60" autocomplete="off"></div>
+    <div class="field"><label for="cfgPrize">Premio</label><input id="cfgPrize" maxlength="80" autocomplete="off"></div>
+    <div class="field"><label for="cfgPrice">Valor por número (COP)</label><input id="cfgPrice" type="number" inputmode="numeric" min="0" step="500"></div>
+    <div class="field"><label for="cfgDate">Fecha del sorteo</label><input id="cfgDate" type="date"></div>
+    <div class="actions">
+      <button class="btn primary" type="submit" id="cfgSave">Guardar</button>
+      <button class="btn" type="button" id="cfgCancel">Cancelar</button>
+    </div>
+  </form>
+
+  <div class="banner" id="banner" hidden></div>
+
+  <section class="stats" aria-label="Resumen">
+    <div class="stat"><div class="k">Disponibles</div><div class="v" id="stFree">100</div><div class="s">de 100 números</div></div>
+    <div class="stat"><div class="k">Reservados</div><div class="v" id="stRes">0</div><div class="s" id="stResSub">sin pagar</div></div>
+    <div class="stat"><div class="k">Pagados</div><div class="v" id="stPaid">0</div><div class="s">confirmados</div></div>
+    <div class="stat"><div class="k">Recaudado</div><div class="v" id="stMoney">–</div><div class="s" id="stMoneySub"></div></div>
+  </section>
+
+  <div class="tabs" role="tablist" aria-label="Secciones de la rifa">
+    <button class="tab" type="button" role="tab" id="tab-grid" aria-selected="true" aria-controls="panel-grid">Números</button>
+    <button class="tab" type="button" role="tab" id="tab-list" aria-selected="false" aria-controls="panel-list" tabindex="-1">Participantes <span class="c" id="tabListCount">0</span></button>
+  </div>
+
+  <section class="tools" aria-label="Filtros">
+    <div class="chips" id="chips">
+      <button class="chip" type="button" data-f="all" aria-pressed="true">Todos <span class="c" id="cAll">100</span></button>
+      <button class="chip" type="button" data-f="free" aria-pressed="false">Disponibles <span class="c" id="cFree">100</span></button>
+      <button class="chip" type="button" data-f="res" aria-pressed="false">Reservados <span class="c" id="cRes">0</span></button>
+      <button class="chip" type="button" data-f="paid" aria-pressed="false">Pagados <span class="c" id="cPaid">0</span></button>
+    </div>
+    <div class="search"><input id="q" type="search" placeholder="Buscar nombre o número" aria-label="Buscar por nombre o número" autocomplete="off"></div>
+  </section>
+
+  <section id="panel-grid" role="tabpanel" aria-labelledby="tab-grid" style="display:flex;flex-direction:column;gap:10px">
+    <div class="grid" id="grid"></div>
+    <div class="legend-row" aria-hidden="true">
+      <span><i class="sw free"></i>Disponible</span>
+      <span><i class="sw res"></i>Reservado, falta pagar</span>
+      <span><i class="sw paid"></i>Pagado</span>
+    </div>
+    <p class="note" id="hint">Toca un número para reservarlo o marcarlo como pagado.</p>
+  </section>
+
+  <section id="panel-list" role="tabpanel" aria-labelledby="tab-list" hidden style="display:flex;flex-direction:column;gap:10px">
+    <div class="list-head">
+      <h2>Número, nombre y estado</h2>
+      <button class="btn" type="button" id="btnCopy">Copiar lista</button>
+    </div>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>Número</th><th>Nombre</th><th>Estado</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="rowsEmpty" hidden></div>
+    </div>
+  </section>
+</main>
+
+<div class="overlay" id="overlay" hidden>
+  <form class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="dlgNum" autocomplete="off">
+    <div class="sheet-head">
+      <div class="big" id="dlgNum">00</div>
+      <div class="grow"><span class="pill" id="dlgState">Disponible</span></div>
+      <button class="x" type="button" id="dlgClose" aria-label="Cerrar">×</button>
+    </div>
+    <div class="field">
+      <label for="fName">Nombre de quien lo reserva</label>
+      <input id="fName" maxlength="60" placeholder="Nombre y apellido">
+    </div>
+    <fieldset>
+      <div class="legend">Estado</div>
+      <div class="seg">
+        <label class="o-free"><input type="radio" name="status" value="free"><span>Disponible</span></label>
+        <label class="o-res"><input type="radio" name="status" value="res"><span>Reservado</span></label>
+        <label class="o-paid"><input type="radio" name="status" value="paid"><span>Pagado</span></label>
+      </div>
+    </fieldset>
+    <p class="err" id="fErr" role="alert"></p>
+    <div class="actions">
+      <button class="btn danger grow" type="button" id="btnRelease" hidden>Liberar número</button>
+      <button class="btn" type="button" id="btnCancel">Cerrar</button>
+      <button class="btn primary" type="submit" id="btnSave">Guardar</button>
+    </div>
+  </form>
+</div>
+<div class="overlay" id="loginOverlay" hidden>
+  <form class="sheet" id="loginForm" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <div class="sheet-head">
+      <h2 id="loginTitle" class="grow">Acceso administrador</h2>
+      <button class="x" type="button" id="loginClose" aria-label="Cerrar">×</button>
+    </div>
+    <div class="field"><label for="lEmail">Correo</label><input id="lEmail" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="lPass">Contraseña</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <p class="err" id="lErr" role="alert"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="loginCancel">Cancelar</button>
+      <button class="btn primary" type="submit" id="loginSubmit">Entrar</button>
+    </div>
+  </form>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* ============ CONFIGURA AQUÍ TU PROYECTO SUPABASE ============
+   Supabase → Project Settings → API
+   Usa SOLO la clave pública "anon" (nunca la service_role). */
+window.RIFA_CONFIG = {
+  SUPABASE_URL: "https://ifwtjxashfkdytuuqrlu.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_AjKlPDSBmwJ_zxVxL6RxEw_xJcyGQ-p"
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var LABEL = { free: "Disponible", res: "Reservado", paid: "Pagado" };
+  var PAD = function (n) { return String(n).padStart(2, "0"); };
+  var $ = function (id) { return document.getElementById(id); };
+  var money = function (n) {
+    try { return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n); }
+    catch (e) { return "$" + n; }
+  };
+  var ICON_PAID = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var ICON_RES = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="5.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4.8V8l2.2 1.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  var state = { nums: {}, cfg: {}, filter: "all", q: "", canEdit: false, db: null, current: null, busy: false };
+
+  /* Cuadrícula (se crea una vez y se actualiza en sitio) */
+  var grid = $("grid");
+  var tiles = [];
+  for (var i = 0; i < 100; i++) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "tile";
+    b.dataset.id = PAD(i);
+    b.innerHTML = '<span class="n"></span><span class="mark"></span><span class="who"></span>';
+    b.querySelector(".n").textContent = PAD(i);
+    grid.appendChild(b);
+    tiles.push(b);
+  }
+  grid.addEventListener("click", function (e) {
+    var t = e.target.closest(".tile");
+    if (t) openDialog(t.dataset.id);
+  });
+
+  function entry(id) { return state.nums[id] || null; }
+  function statusOf(id) { var e = entry(id); return e ? e.status : "free"; }
+
+  function matches(id) {
+    var st = statusOf(id);
+    if (state.filter !== "all" && state.filter !== st) return false;
+    var q = state.q.trim().toLowerCase();
+    if (!q) return true;
+    var e = entry(id);
+    var nm = e ? e.name.toLowerCase() : "";
+    return id.indexOf(q) === 0 || String(Number(id)) === q || nm.indexOf(q) !== -1;
+  }
+
+  function render() {
+    var res = 0, paid = 0;
+    for (var i = 0; i < 100; i++) {
+      var id = PAD(i), e = entry(id), st = statusOf(id), t = tiles[i];
+      if (st === "res") res++;
+      if (st === "paid") paid++;
+      t.className = "tile" + (st === "res" ? " res" : st === "paid" ? " paid" : "") + (matches(id) ? "" : " dim");
+      t.querySelector(".who").textContent = e ? e.name : "";
+      t.querySelector(".mark").innerHTML = st === "paid" ? ICON_PAID : st === "res" ? ICON_RES : "";
+      t.setAttribute("aria-label", "Número " + id + ", " + LABEL[st].toLowerCase() + (e ? ", " + e.name : ""));
+    }
+    var free = 100 - res - paid;
+    $("stFree").textContent = free;
+    $("stRes").textContent = res;
+    $("stPaid").textContent = paid;
+    $("cAll").textContent = 100;
+    $("cFree").textContent = free;
+    $("cRes").textContent = res;
+    $("cPaid").textContent = paid;
+
+    var price = Number(state.cfg.price) || 0;
+    if (price > 0) {
+      $("stMoney").textContent = money(price * paid);
+      $("stMoneySub").textContent = res ? "Por cobrar " + money(price * res) : "Todo cobrado";
+      $("stResSub").textContent = money(price * res) + " por cobrar";
+    } else {
+      $("stMoney").textContent = "–";
+      $("stMoneySub").textContent = state.canEdit ? "Define el valor en Ajustes" : "Sin valor definido";
+      $("stResSub").textContent = "sin pagar";
+    }
+
+    var title = (state.cfg.title || "").trim();
+    $("title").textContent = title || "Gran rifa decembrina de 5.000.000";
+    var meta = $("meta");
+    meta.textContent = "";
+    function addMeta(label, value) {
+      var s = document.createElement("span");
+      s.append(label + " ");
+      var b = document.createElement("b");
+      b.textContent = value;
+      s.appendChild(b);
+      meta.appendChild(s);
+    }
+    if ((state.cfg.prize || "").trim()) addMeta("Premio", state.cfg.prize.trim());
+    $("priceTag").hidden = !(price > 0);
+    if (price > 0) $("priceVal").textContent = money(price);
+    if (state.cfg.date) {
+      var d = new Date(state.cfg.date + "T12:00:00");
+      if (!isNaN(d)) addMeta("Sorteo", d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" }));
+    }
+
+    renderRows();
+  }
+
+  function renderRows() {
+    var body = $("rows");
+    body.textContent = "";
+    var pool;
+    if (state.filter === "free") {
+      pool = [];
+      for (var k = 0; k < 100; k++) { if (!state.nums[PAD(k)]) pool.push(PAD(k)); }
+    } else {
+      pool = Object.keys(state.nums).sort();
+    }
+    var ids = pool.filter(matches);
+    ids.forEach(function (id) {
+      var e = state.nums[id] || { name: "", status: "free" };
+      var tr = document.createElement("tr");
+      var td1 = document.createElement("td"); td1.className = "num";
+      var bt = document.createElement("button"); bt.type = "button"; bt.textContent = id;
+      bt.setAttribute("aria-label", "Abrir número " + id);
+      bt.addEventListener("click", function () { openDialog(id); });
+      td1.appendChild(bt);
+      var td2 = document.createElement("td"); td2.className = "nm"; td2.textContent = e.name || "–";
+      var td3 = document.createElement("td");
+      var p = document.createElement("span"); p.className = "pill " + e.status; p.textContent = LABEL[e.status];
+      td3.appendChild(p);
+      tr.append(td1, td2, td3);
+      body.appendChild(tr);
+    });
+    $("tabListCount").textContent = Object.keys(state.nums).length;
+    var empty = $("rowsEmpty");
+    var taken = Object.keys(state.nums).length;
+    if (!ids.length) {
+      empty.hidden = false;
+      empty.textContent = taken ? "Ningún participante coincide con el filtro o la búsqueda." : "Todavía no hay números reservados. Toca uno de la cuadrícula para empezar.";
+    } else { empty.hidden = true; }
+  }
+
+  /* Filtros y búsqueda */
+  $("chips").addEventListener("click", function (e) {
+    var c = e.target.closest(".chip");
+    if (!c) return;
+    state.filter = c.dataset.f;
+    document.querySelectorAll(".chip").forEach(function (x) { x.setAttribute("aria-pressed", x === c ? "true" : "false"); });
+    render();
+  });
+  $("q").addEventListener("input", function (e) { state.q = e.target.value; render(); });
+
+  /* Pestañas */
+  var TABS = ["grid", "list"];
+  function setTab(name, focus) {
+    TABS.forEach(function (n) {
+      var on = n === name;
+      var t = $("tab-" + n);
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      $("panel-" + n).hidden = !on;
+      if (on && focus) t.focus();
+    });
+  }
+  TABS.forEach(function (n) {
+    $("tab-" + n).addEventListener("click", function () { setTab(n); });
+    $("tab-" + n).addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        setTab(TABS[(TABS.indexOf(n) + 1) % TABS.length], true);
+      }
+    });
+  });
+
+  /* Avisos */
+  var toastTimer;
+  function toast(msg) {
+    var t = $("toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 3000);
+  }
+  function banner(msg) {
+    var b = $("banner");
+    b.hidden = !msg;
+    b.textContent = msg || "";
+  }
+  function explain(err) {
+    var code = err && err.code;
+    var msg = String((err && err.message) || "").toLowerCase();
+    if (code === "42501" || msg.indexOf("row-level security") !== -1) return "Solo quien administra la rifa puede cambiar los números.";
+    if (code === "PGRST301" || msg.indexOf("jwt") !== -1) return "Tu sesión venció. Vuelve a iniciar sesión.";
+    if (code === "23514" || code === "23502") return "Datos no válidos. Revisa el nombre y el número.";
+    return "No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.";
+  }
+
+  /* Diálogo de número */
+  var overlay = $("overlay"), form = $("sheet"), fName = $("fName"), fErr = $("fErr");
+  var opener = null;
+
+  function setStatusUI(st) {
+    Array.prototype.forEach.call(form.querySelectorAll('input[name="status"]'), function (r) { r.checked = r.value === st; });
+    fName.disabled = !state.canEdit || st === "free";
+  }
+  function currentStatusUI() {
+    var r = form.querySelector('input[name="status"]:checked');
+    return r ? r.value : "free";
+  }
+
+  function openDialog(id) {
+    state.current = id;
+    opener = document.activeElement;
+    var e = entry(id), st = statusOf(id);
+    $("dlgNum").textContent = id;
+    var pill = $("dlgState");
+    pill.className = "pill" + (st === "free" ? "" : " " + st);
+    pill.textContent = LABEL[st];
+    fName.value = e ? e.name : "";
+    fErr.textContent = "";
+    var canEdit = state.canEdit;
+    Array.prototype.forEach.call(form.querySelectorAll('input[name="status"]'), function (r) { r.disabled = !canEdit; });
+    setStatusUI(st === "free" && canEdit ? "res" : st);
+    $("btnSave").hidden = !canEdit;
+    $("btnRelease").hidden = !(canEdit && st !== "free");
+    $("btnCancel").textContent = canEdit ? "Cancelar" : "Cerrar";
+    fName.readOnly = !canEdit;
+    overlay.hidden = false;
+    setTimeout(function () { (canEdit && !fName.disabled ? fName : $("dlgClose")).focus(); }, 0);
+  }
+  function closeDialog() {
+    overlay.hidden = true;
+    state.current = null;
+    if (opener && opener.focus) { try { opener.focus(); } catch (e) {} }
+  }
+  $("dlgClose").addEventListener("click", closeDialog);
+  $("btnCancel").addEventListener("click", closeDialog);
+  overlay.addEventListener("mousedown", function (e) { if (e.target === overlay) closeDialog(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !overlay.hidden) closeDialog(); });
+  form.addEventListener("change", function (e) {
+    if (e.target.name === "status") {
+      fName.disabled = !state.canEdit || e.target.value === "free";
+      if (!fName.disabled) fName.focus();
+    }
+  });
+
+  async function saveNumber(id, name, st) {
+    if (!state.db) throw { code: "unavailable" };
+    var t = state.db.from("raffle_numbers");
+    var r = st === "free"
+      ? await t.delete().eq("id", id)
+      : await t.upsert({ id: id, name: name, status: st });
+    if (r.error) throw r.error;
+    if (state.refresh) await state.refresh();
+  }
+
+  async function commit(st) {
+    if (!state.canEdit || state.busy) return;
+    var id = state.current;
+    var name = fName.value.trim();
+    if (st !== "free" && !name) {
+      fErr.textContent = "Escribe el nombre de quien lo reserva.";
+      fName.disabled = false;
+      fName.focus();
+      return;
+    }
+    state.busy = true;
+    $("btnSave").disabled = true;
+    $("btnRelease").disabled = true;
+    try {
+      await saveNumber(id, name, st);
+      closeDialog();
+      toast(st === "free" ? "Número " + id + " liberado" : "Número " + id + ": " + LABEL[st].toLowerCase() + " a nombre de " + name);
+    } catch (err) {
+      fErr.textContent = explain(err);
+    } finally {
+      state.busy = false;
+      $("btnSave").disabled = false;
+      $("btnRelease").disabled = false;
+    }
+  }
+  form.addEventListener("submit", function (e) { e.preventDefault(); commit(currentStatusUI()); });
+  $("btnRelease").addEventListener("click", function () { commit("free"); });
+
+  /* Ajustes */
+  var settings = $("settings"), btnSettings = $("btnSettings");
+  function toggleSettings(open) {
+    settings.hidden = !open;
+    btnSettings.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      $("cfgTitle").value = state.cfg.title || "";
+      $("cfgPrize").value = state.cfg.prize || "";
+      $("cfgPrice").value = state.cfg.price ? String(state.cfg.price) : "";
+      $("cfgDate").value = state.cfg.date || "";
+      $("cfgTitle").focus();
+    }
+  }
+  btnSettings.addEventListener("click", function () { toggleSettings(settings.hidden); });
+  $("cfgCancel").addEventListener("click", function () { toggleSettings(false); });
+  settings.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!state.db || state.busy) return;
+    state.busy = true;
+    $("cfgSave").disabled = true;
+    try {
+      var rc = await state.db.from("raffle_config").upsert({
+        id: 1,
+        title: $("cfgTitle").value.trim() || "Gran rifa decembrina de 5.000.000",
+        prize: $("cfgPrize").value.trim(),
+        price: Math.max(0, Math.round(Number($("cfgPrice").value) || 0)),
+        draw_date: $("cfgDate").value || null
+      });
+      if (rc.error) throw rc.error;
+      if (state.refreshCfg) await state.refreshCfg();
+      toggleSettings(false);
+      toast("Ajustes guardados");
+    } catch (err) {
+      toast(explain(err));
+    } finally {
+      state.busy = false;
+      $("cfgSave").disabled = false;
+    }
+  });
+
+  /* Copiar lista */
+  $("btnCopy").addEventListener("click", function () {
+    var ids = Object.keys(state.nums).sort();
+    if (!ids.length) { toast("Aún no hay participantes para copiar"); return; }
+    var text = ids.map(function (id) { return id + " - " + state.nums[id].name + " - " + LABEL[state.nums[id].status]; }).join("\n");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { toast("Lista copiada"); },
+        function () { toast("No se pudo copiar. Selecciona el texto de la tabla."); }
+      );
+    } else { toast("No se pudo copiar. Selecciona el texto de la tabla."); }
+  });
+
+  /* Conexión con Supabase */
+  var CFG = window.RIFA_CONFIG || {};
+  var configured = CFG.SUPABASE_URL && CFG.SUPABASE_ANON_KEY &&
+    CFG.SUPABASE_URL.indexOf("TU-PROYECTO") === -1 && CFG.SUPABASE_ANON_KEY.indexOf("TU_ANON") === -1;
+  var sb = null;
+
+  async function loadNumbers() {
+    var r = await sb.from("raffle_numbers").select("id,name,status");
+    if (r.error) { banner("No se pudieron cargar los números. Recarga la página."); return; }
+    var next = {};
+    (r.data || []).forEach(function (d) {
+      next[d.id] = { name: String(d.name || ""), status: d.status === "paid" ? "paid" : "res" };
+    });
+    state.nums = next;
+    render();
+  }
+  async function loadConfig() {
+    var r = await sb.from("raffle_config").select("title,prize,price,draw_date").eq("id", 1).maybeSingle();
+    if (r.error) return;
+    var d = r.data;
+    state.cfg = d ? { title: d.title, prize: d.prize, price: Number(d.price) || 0, date: d.draw_date || "" } : {};
+    render();
+  }
+
+  async function refreshRole(session) {
+    var admin = false;
+    var logged = !!(session && session.user);
+    if (logged) {
+      var r = await sb.from("raffle_admins").select("user_id").eq("user_id", session.user.id).maybeSingle();
+      admin = !r.error && !!r.data;
+    }
+    state.canEdit = admin;
+    btnSettings.hidden = !admin;
+    $("btnLogin").hidden = logged;
+    $("btnLogout").hidden = !logged;
+    if (!admin) toggleSettings(false);
+    if (admin) {
+      banner("");
+      $("hint").textContent = "Toca un número para reservarlo o marcarlo como pagado.";
+    } else {
+      banner(logged
+        ? "Tu cuenta no tiene permisos de administrador. Estás en modo lectura."
+        : "Estás viendo la rifa en modo lectura. Inicia sesión como administrador para reservar números.");
+      $("hint").textContent = "Toca un número para ver quién lo tiene.";
+    }
+    render();
+  }
+
+  /* Login */
+  var lo = $("loginOverlay");
+  function openLogin() { $("lErr").textContent = ""; lo.hidden = false; setTimeout(function () { $("lEmail").focus(); }, 0); }
+  function closeLogin() { lo.hidden = true; }
+  $("btnLogin").addEventListener("click", openLogin);
+  $("loginClose").addEventListener("click", closeLogin);
+  $("loginCancel").addEventListener("click", closeLogin);
+  lo.addEventListener("mousedown", function (e) { if (e.target === lo) closeLogin(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !lo.hidden) closeLogin(); });
+  $("loginForm").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    if (!sb) return;
+    $("loginSubmit").disabled = true;
+    $("lErr").textContent = "";
+    try {
+      var r = await sb.auth.signInWithPassword({ email: $("lEmail").value.trim(), password: $("lPass").value });
+      if (r.error) { $("lErr").textContent = "Correo o contraseña incorrectos."; }
+      else { $("lPass").value = ""; closeLogin(); toast("Sesión iniciada"); }
+    } catch (err) {
+      $("lErr").textContent = "No se pudo conectar. Inténtalo de nuevo.";
+    } finally { $("loginSubmit").disabled = false; }
+  });
+  $("btnLogout").addEventListener("click", async function () {
+    if (!sb) return;
+    await sb.auth.signOut();
+    toast("Sesión cerrada");
+  });
+
+  /* Arranque */
+  render();
+  (async function boot() {
+    if (!configured || !window.supabase) {
+      banner(!window.supabase
+        ? "No se pudo cargar la librería de Supabase. Revisa tu conexión."
+        : "Falta configurar Supabase: edita SUPABASE_URL y SUPABASE_ANON_KEY al inicio del archivo.");
+      return;
+    }
+    sb = window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+    state.db = sb;
+    state.refresh = loadNumbers;
+    state.refreshCfg = loadConfig;
+
+    var s = await sb.auth.getSession();
+    await refreshRole(s && s.data ? s.data.session : null);
+    await Promise.all([loadNumbers(), loadConfig()]);
+
+    sb.auth.onAuthStateChange(function (event, session) {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        setTimeout(function () { refreshRole(session); }, 0);
+      }
+    });
+
+    /* Tiempo real: se recarga la tabla (máx. 100 filas) con un pequeño debounce */
+    var tN, tC;
+    sb.channel("rifa-cambios")
+      .on("postgres_changes", { event: "*", schema: "public", table: "raffle_numbers" }, function () {
+        clearTimeout(tN); tN = setTimeout(loadNumbers, 150);
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "raffle_config" }, function () {
+        clearTimeout(tC); tC = setTimeout(loadConfig, 150);
+      })
+      .subscribe();
+  })();
+})();
+</script>
+
+</body></html>
